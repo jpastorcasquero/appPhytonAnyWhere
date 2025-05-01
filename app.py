@@ -1,0 +1,96 @@
+# Paso 1: Migración a WebApp compatible con PythonAnywhere (estructura Flask)
+# Este esqueleto te permitirá cargar tu lógica existente y dejar atrás Tkinter para usar Flask
+
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask_cors import CORS
+from werkzeug.utils import secure_filename
+from BBDD.database_functions import DatabaseFunctions
+from Logger.logger import Logger
+import os
+
+# Inicialización de Flask
+app = Flask(__name__)
+app.secret_key = 'clave_secreta_segura'
+CORS(app)
+
+# Ruta base del proyecto en PythonAnywhere
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LOG_DIR = os.path.join(BASE_DIR, 'logs')
+SECURE_DIR = os.path.join(BASE_DIR, 'secure')
+os.makedirs(LOG_DIR, exist_ok=True)
+os.makedirs(SECURE_DIR, exist_ok=True)
+
+# Logger y conexión
+log_path = os.path.join(LOG_DIR, 'webapp.log')
+logger = Logger(log_path)
+db_handler = DatabaseFunctions(logger)
+db_handler.load_and_connect()
+
+@app.route('/')
+def index():
+    return redirect(url_for('usuarios'))
+
+@app.route('/usuarios')
+def usuarios():
+    usuarios = db_handler.fetch_users_from_db()
+    return render_template('usuarios.html', usuarios=usuarios)
+
+@app.route('/usuario/<int:user_id>', methods=['GET'])
+def obtener_usuario(user_id):
+    usuario = db_handler.fetch_users_from_db()
+    datos = next((u for u in usuario if int(u['id']) == user_id), None)
+    return jsonify(datos)
+
+@app.route('/usuario/crear', methods=['POST'])
+def crear_usuario():
+    datos = request.form.to_dict()
+    success, message = db_handler.create_user(datos)
+    flash(message, 'success' if success else 'error')
+    return redirect(url_for('usuarios'))
+
+@app.route('/usuario/editar/<int:user_id>', methods=['POST'])
+def editar_usuario(user_id):
+    datos = request.form.to_dict()
+    success, message = db_handler.save_user_data(user_id, datos)
+    flash(message, 'success' if success else 'error')
+    return redirect(url_for('usuarios'))
+
+@app.route('/usuario/eliminar/<int:user_id>', methods=['POST'])
+def eliminar_usuario(user_id):
+    success, message = db_handler.delete_user(user_id)
+    flash(message, 'success' if success else 'error')
+    return redirect(url_for('usuarios'))
+
+# Restablecimiento de contraseña vía correo
+@app.route('/usuario/reset/<int:user_id>', methods=['GET'])
+def restablecer_contraseña(user_id):
+    from email.mime.text import MIMEText
+    import smtplib
+
+    usuarios = db_handler.fetch_users_from_db()
+    user = next((u for u in usuarios if int(u['id']) == user_id), None)
+    if not user:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+
+    user_email = user['email']
+    reset_link = f"https://{request.host}/reset_password/{user_id}"
+
+    msg = MIMEText(f"Haz clic para restablecer tu contraseña: {reset_link}")
+    msg['Subject'] = 'Restablecimiento de Contraseña'
+    msg['From'] = 'pass.recovery.jpcinformatica@gmail.com'
+    msg['To'] = user_email
+
+    try:
+        with smtplib.SMTP('smtp.gmail.com', 587) as server:
+            server.starttls()
+            server.login('pass.recovery.jpcinformatica@gmail.com', 'yxko jelw mgoo vumt')
+            server.sendmail(msg['From'], [msg['To']], msg.as_string())
+        return jsonify({'message': 'Correo enviado correctamente'})
+    except Exception as e:
+        return jsonify({'error': f'Error al enviar el correo: {e}'}), 500
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+# Este archivo reemplaza la lógica tkinter con endpoints Flask.
+# Puedes crear templates HTML en una carpeta "templates" para representar la UI.

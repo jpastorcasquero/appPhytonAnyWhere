@@ -45,3 +45,41 @@ class Logger:
         if not self.connection_logged:
             self.log("¡Conexión a la base de datos exitosa!")  # Registra el mensaje de éxito de la conexión
             self.connection_logged = True  # Actualiza el flag para indicar que la conexión ha sido registrada
+
+# Logger/logger.py
+import os
+from datetime import datetime
+
+class Logger:
+    def __init__(self, log_file_path, db_connection=None):
+        self.log_file_path = log_file_path
+        self.db_connection = db_connection
+        os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
+
+    def log(self, message, level="INFO"):
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        full_message = f"[{timestamp}] {level}: {message}\n"
+
+        # Escribir en archivo
+        with open(self.log_file_path, 'a', encoding='utf-8') as f:
+            f.write(full_message)
+
+        # Escribir en base de datos si hay conexión
+        if self.db_connection:
+            try:
+                with self.db_connection.cursor() as cursor:
+                    cursor.execute(
+                        "INSERT INTO log (timestamp, message) VALUES (%s, %s)",
+                        (timestamp, message)
+                    )
+                self.db_connection.commit()
+            except Exception as e:
+                # Fallback: logear error solo en archivo si no se puede guardar en BD
+                with open(self.log_file_path, 'a', encoding='utf-8') as f:
+                    f.write(f"[{timestamp}] ERROR: No se pudo guardar en BD: {e}\n")
+
+    def log_info(self, message):
+        self.log(message, level="INFO")
+
+    def log_error(self, message):
+        self.log(message, level="ERROR")
