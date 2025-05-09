@@ -1,0 +1,335 @@
+import tkinter as tk
+from tkinter import messagebox, scrolledtext, Menu
+from tkinter import ttk
+import threading
+import os
+import sys
+from BBDD.database_functions import DatabaseFunctions
+from Logger.logger import Logger
+
+class DatabaseUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Conexión a Base de Datos")
+        self.root.geometry("600x500")
+        self.root.configure(bg="#f0f0f0")
+        self.root.iconbitmap("Images/Logo.ico")
+
+        self.functions = DatabaseFunctions()
+
+        style = ttk.Style()
+        style.configure("TLabel", background="#f0f0f0", font=("Arial", 12))
+        style.configure("TEntry", font=("Arial", 12))
+        style.configure("TButton", font=("Arial", 12), padding=6)
+
+        self.host_label = ttk.Label(root, text="Host:")
+        self.host_label.pack(padx=10, pady=5, anchor='w')
+        self.host_entry = ttk.Entry(root, width=70)
+        self.host_entry.pack(padx=10, pady=5, anchor='w')
+
+        self.database_label = ttk.Label(root, text="Base de Datos:")
+        self.database_label.pack(padx=10, pady=5, anchor='w')
+        self.database_entry = ttk.Entry(root, width=70)
+        self.database_entry.pack(padx=10, pady=5, anchor='w')
+
+        self.user_label = ttk.Label(root, text="Usuario:")
+        self.user_label.pack(padx=10, pady=5, anchor='w')
+        self.user_entry = ttk.Entry(root, width=70)
+        self.user_entry.pack(padx=10, pady=5, anchor='w')
+
+        self.password_label = ttk.Label(root, text="Contraseña:")
+        self.password_label.pack(padx=10, pady=5, anchor='w')
+        self.password_entry = ttk.Entry(root, show="*", width=70)
+        self.password_entry.pack(padx=10, pady=5, anchor='w')
+
+        button_frame = ttk.Frame(root)
+        button_frame.pack(pady=20)
+
+        self.connect_button = ttk.Button(button_frame, text="Conectar", command=self.check_and_connect)
+        self.connect_button.pack(side=tk.LEFT, padx=10)
+
+        self.exit_button = ttk.Button(button_frame, text="Salir", command=self.exit_program)
+        self.exit_button.pack(side=tk.LEFT, padx=10)
+
+        self.status_label = tk.Label(
+            root, text="BBDD desconectada", font=("Arial", 15, "bold"), fg="red", bg="#f0f0f0"
+        )
+        self.status_label.pack(side=tk.BOTTOM, anchor='e', padx=10, pady=(0, 10))
+
+        program_files = os.getenv('ProgramFiles')
+        log_path = os.path.join(program_files, 'JPC', 'log.txt')
+        self.logger = Logger(log_path)
+
+        self.log_text = scrolledtext.ScrolledText(self.root, width=60, height=10, font=("Arial", 10))
+        self.log_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        self.check_and_connect()
+
+        self.menu_bar = Menu(self.root)
+        self.create_menu()
+
+    def check_and_connect(self):
+        if hasattr(self, 'user_management_window') and self.user_management_window.winfo_exists():
+            self.user_management_window.lift()
+            return
+
+        if os.path.exists(self.functions.credentials_path):
+            success, message = self.functions.load_and_connect()
+            if success:
+                self.update_ui_on_connect(message)
+            else:
+                retry = messagebox.askyesno("Error", f"{message}\n¿Quieres volver a introducir las credenciales?")
+                if retry:
+                    self.clear_entries()
+        else:
+            self.logger.log("No se han encontrado credenciales para conectarse a la base de datos.")
+            self.get_credentials_and_connect()
+
+    def update_status_label(self):
+        if self.functions.db_connected:
+            self.status_label.config(text="BBDD conectada", fg="green")
+        else:
+            self.status_label.config(text="BBDD desconectada", fg="red")
+
+    def get_credentials_and_connect(self):
+        host = self.host_entry.get()
+        database = self.database_entry.get()
+        user = self.user_entry.get()
+        password = self.password_entry.get()
+        self.logger.log("Introducimos nuevas credenciales host:" + host + " database:" + database + " user:" + user)
+        threading.Thread(target=self.connect_and_log, args=(host, database, user, password)).start()
+
+    def connect_and_log(self, host, database, user, password):
+        success, message = self.functions.connect_to_database(host, database, user, password)
+        if success:
+            self.update_ui_on_connect(message)
+        else:
+            retry = messagebox.askyesno("Error", f"{message}\n¿Quieres volver a introducir las credenciales?")
+            if retry:
+                self.clear_entries()
+            else:
+                self.exit_program()
+            self.logger.log(f"Error de conexión: {message}")
+
+    def update_ui_on_connect(self, message):
+        self.root.title(f"Conexión a Base de Datos {self.functions.db_connection.database} correcta")
+        self.root.state('zoomed')
+        for widget in self.root.winfo_children():
+            widget.pack_forget()
+
+        self.create_menu()
+
+        self.log_text = scrolledtext.ScrolledText(self.root, width=60, height=10, font=("Arial", 10))
+        self.log_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        self.update_status_label()
+        self.status_label.pack(side=tk.BOTTOM, anchor='e', padx=10, pady=(0, 10))
+
+        self.logger = Logger(self.logger.log_path, self.log_text)
+        self.logger.log(f"Conexión exitosa: {message}")
+
+    def create_menu(self):
+        self.menu_bar = Menu(self.root)
+        self.options_menu = Menu(self.menu_bar, tearoff=0)
+        self.users_menu = Menu(self.menu_bar, tearoff=0)
+
+        if self.functions.db_connected:
+            self.options_menu.add_command(label="Desconectar Base de Datos", command=self.disconnect_database)
+        else:
+            self.options_menu.add_command(label="Conectar Base de Datos", command=self.check_and_connect)
+
+        self.options_menu.add_command(label="Borrar Fichero de Configuración", command=self.delete_config_file)
+        self.options_menu.add_separator()
+        self.options_menu.add_command(label="Salir", command=self.exit_program)
+
+        self.users_menu.add_command(label="Gestión de usuarios", command=self.show_user_management)
+        self.users_menu.add_command(label="Crear usuario", command=self.create_user_form)
+
+        self.menu_bar.add_cascade(label="Opciones", menu=self.options_menu)
+        self.menu_bar.add_cascade(label="Usuarios", menu=self.users_menu)
+        self.root.config(menu=self.menu_bar)
+
+    def disconnect_database(self):
+        success, message = self.functions.disconnect_database()
+        if success:
+            self.update_status_label()
+            self.create_menu()
+            self.logger.log("Base de datos desconectada.")
+            messagebox.showinfo("Desconectar", "Base de datos desconectada.")
+        else:
+            self.logger.log(f"Error al desconectar: {message}")
+            messagebox.showerror("Error", f"No se pudo desconectar la base de datos: {message}")
+
+    def delete_config_file(self):
+        success, message = self.functions.delete_config_file()
+        if success:
+            self.logger.log(message)
+            messagebox.showinfo("Borrar Fichero", f"{message}\n\nSe procede a cerrar la aplicación")
+            self.exit_program()
+        else:
+            self.logger.log(message)
+            messagebox.showwarning("Borrar Fichero", message)
+
+    def clear_entries(self):
+        self.host_entry.delete(0, tk.END)
+        self.database_entry.delete(0, tk.END)
+        self.user_entry.delete(0, tk.END)
+        self.password_entry.delete(0, tk.END)
+
+    def exit_program(self):
+        self.logger.log("Aplicación cerrada.")
+        self.root.quit()
+        os._exit(0)
+
+    def show_user_management(self):
+        if hasattr(self, 'user_management_window') and self.user_management_window.winfo_exists():
+            self.user_management_window.lift()
+            return
+
+        self.user_management_window = tk.Toplevel(self.root)
+        self.user_management_window.title("Gestión de usuarios")
+        self.user_management_window.iconbitmap("Images/Logo.ico")
+
+        columns = ("id", "Nombre", "Nombre de usuario", "Correo", "Contraseña", "Rol", "Imagen")
+        tree = ttk.Treeview(self.user_management_window, columns=columns, show='headings')
+        for col in columns:
+            tree.heading(col, text=col, anchor='center')
+            tree.column(col, anchor='center')
+        tree.pack(fill=tk.BOTH, expand=True)
+
+        self.refresh_user_management(tree)
+
+        tree.bind("<Double-1>", lambda event: self.on_user_double_click(event, tree))
+        tree.bind("<Button-3>", lambda event: self.show_context_menu(event, tree))
+
+        refresh_button = ttk.Button(self.user_management_window, text="Actualizar Tabla", command=lambda: self.refresh_user_management(tree))
+        refresh_button.pack(pady=10)
+
+    def refresh_user_management(self, tree):
+        for item in tree.get_children():
+            tree.delete(item)
+        users = self.functions.fetch_users_from_db()
+        for user in users:
+            tree.insert("", tk.END, values=user)
+
+    def on_user_double_click(self, event, tree):
+        try:
+            item = tree.selection()[0]
+            user_data = tree.item(item, "values")
+            self.show_user_form(user_data, tree)
+        except IndexError:
+            messagebox.showerror("Error", "No se ha seleccionado ningún usuario.")
+
+    def show_context_menu(self, event, tree):
+        try:
+            item = tree.identify_row(event.y)
+            tree.selection_set(item)
+            user_data = tree.item(item, "values")
+            context_menu = tk.Menu(self.root, tearoff=0)
+            context_menu.add_command(label="Eliminar Usuario", command=lambda: self.delete_user(user_data, tree))
+            context_menu.post(event.x_root, event.y_root)
+        except IndexError:
+            pass
+
+    def delete_user(self, user_data, tree):
+        confirm = messagebox.askyesno("Confirmar Eliminación",
+                                      f"¿Estás seguro de que deseas eliminar al usuario {user_data[1]}?")
+        if confirm:
+            success, message = self.functions.delete_user(user_data[0])
+            if success:
+                messagebox.showinfo("Éxito", message)
+                self.refresh_user_management(tree)
+            else:
+                messagebox.showerror("Error", message)
+
+    def show_user_form(self, user_data=None, tree=None):
+        user_form_window = tk.Toplevel(self.root)
+        user_form_window.title("Editar usuario" if user_data else "Crear usuario")
+        user_form_window.iconbitmap("Images/Logo.ico")
+        user_form_window.geometry("600x750")
+
+        labels = ["Nombre", "Nombre de usuario", "Correo", "Contraseña", "Rol", "Imagen", "Código de País 1",
+                  "Teléfono 1", "Código de País 2", "Teléfono 2", "Ciudad", "País", "Código postal", "Dirección"]
+        entries = {}
+
+        for i, label in enumerate(labels):
+            tk.Label(user_form_window, text=label).grid(row=i, column=0, padx=10, pady=5)
+            if "Código de País" in label:
+                country_codes = ["+1", "+34", "+44", "+49", "+61", "+81", "+86", "+91"]
+                entry = ttk.Combobox(user_form_window, values=country_codes)
+            elif label == "Rol":
+                entry = ttk.Combobox(user_form_window, values=["admin", "user"])
+            elif label == "Imagen":
+                entry = ttk.Combobox(user_form_window,
+                                     values=["avatar1.png", "avatar2.png", "avatar3.png", "avatar4.png"])
+            else:
+                entry = tk.Entry(user_form_window, width=40)
+            entry.grid(row=i, column=1, padx=10, pady=5, sticky='ew')
+            entries[label] = entry
+
+        if user_data:
+            entries["Nombre"].insert(0, user_data[1])
+            entries["Nombre de usuario"].insert(0, user_data[2])
+            entries["Correo"].insert(0, user_data[3])
+            entries["Contraseña"].insert(0, user_data[4])
+            entries["Rol"].set(user_data[5])
+            entries["Imagen"].set(user_data[6])
+
+            user_id = user_data[0]
+            phone_data = self.functions.fetch_phone_data(user_id)
+            address_data = self.functions.fetch_address_data(user_id)
+
+            if phone_data:
+                entries["Código de País 1"].set(phone_data[0][0] if len(phone_data) > 0 else "")
+                entries["Teléfono 1"].insert(0, phone_data[0][1] if len(phone_data) > 0 else "")
+                entries["Código de País 2"].set(phone_data[1][0] if len(phone_data) > 1 else "")
+                entries["Teléfono 2"].insert(0, phone_data[1][1] if len(phone_data) > 1 else "")
+            if address_data:
+                entries["Ciudad"].insert(0, address_data[0])
+                entries["País"].insert(0, address_data[1])
+                entries["Código postal"].insert(0, address_data[2])
+                entries["Dirección"].insert(0, address_data[3])
+
+        original_values = {label: entry.get() for label, entry in entries.items()}
+
+        def save_and_close():
+            if user_data:
+                success, message = self.functions.save_user_data(user_id, entries)
+            else:
+                success, message = self.functions.create_user(entries)
+
+            if success:
+                messagebox.showinfo("Éxito", message)
+                if tree:
+                    self.refresh_user_management(tree)
+                user_form_window.destroy()
+            else:
+                messagebox.showerror("Error", message)
+
+        def on_closing():
+            current_values = {label: entry.get() for label, entry in entries.items()}
+            if current_values != original_values:
+                if messagebox.askyesno("Salir", "¿Deseas guardar los cambios antes de salir?"):
+                    save_and_close()
+                else:
+                    user_form_window.destroy()
+                    if tree:
+                        tree.focus_set()
+            else:
+                user_form_window.destroy()
+                if tree:
+                    tree.focus_set()
+
+        user_form_window.protocol("WM_DELETE_WINDOW", on_closing)
+
+        button_frame = ttk.Frame(user_form_window)
+        button_frame.grid(row=len(labels), column=0, columnspan=2, pady=10)
+
+        save_button = ttk.Button(button_frame, text="Guardar", command=save_and_close)
+        save_button.pack(side=tk.LEFT, padx=10)
+
+        exit_button = ttk.Button(button_frame, text="Salir", command=on_closing)
+        exit_button.pack(side=tk.LEFT, padx=10)
+
+    def create_user_form(self):
+        self.show_user_form()

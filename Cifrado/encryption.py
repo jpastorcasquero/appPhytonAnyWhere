@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 from Crypto.Cipher import AES
 import base64
 import json
@@ -77,3 +78,27 @@ class Encryption:
 
         # Convertir a string y eliminar espacios de relleno
         return decrypted_bytes.decode('utf-8').strip()
+=======
+from Crypto.Cipher import AES  # Importa el módulo AES del paquete Crypto.Cipher para realizar operaciones de cifrado y descifrado
+import base64  # Importa el módulo base64 para codificar y decodificar datos en base64
+import json  # Importa el módulo json para trabajar con datos en formato JSON
+
+class Encryption:
+    def __init__(self, secret_key):
+        # Inicializa la clase Encryption con una clave secreta
+        # La clave secreta se ajusta para que tenga una longitud de 32 bytes, rellenando con ceros a la izquierda si es necesario
+        self.secret_key = secret_key.zfill(32)  # La clave AES debe tener una longitud de 16, 24 o 32 bytes
+
+    def encrypt(self, data):
+        # Metodo para cifrar datos
+        cipher = AES.new(self.secret_key.encode('utf-8'), AES.MODE_ECB)  # Crea un nuevo objeto AES en modo ECB (Electronic Codebook)
+        padded_data = data + (16 - len(data) % 16) * ' '  # Rellena los datos para que su longitud sea múltiplo de 16 bytes
+        encrypted_bytes = cipher.encrypt(padded_data.encode('utf-8'))  # Cifra los datos rellenados
+        return base64.b64encode(encrypted_bytes).decode('utf-8')  # Codifica los datos cifrados en base64 y los devuelve como una cadena
+
+    def decrypt(self, data):
+        # Metodo para descifrar datos
+        cipher = AES.new(self.secret_key.encode('utf-8'), AES.MODE_ECB)  # Crea un nuevo objeto AES en modo ECB (Electronic Codebook)
+        decrypted_bytes = cipher.decrypt(base64.b64decode(data))  # Decodifica los datos de base64 y luego los descifra
+        return decrypted_bytes.decode('utf-8').strip()  # Devuelve los datos descifrados como una cadena, eliminando espacios en blanco adicionales
+>>>>>>> ec128bb (Primer commit del proyecto)

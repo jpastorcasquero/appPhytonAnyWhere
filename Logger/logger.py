@@ -45,6 +45,7 @@ class Logger:
         if not self.connection_logged:
             self.log("¡Conexión a la base de datos exitosa!")  # Registra el mensaje de éxito de la conexión
             self.connection_logged = True  # Actualiza el flag para indicar que la conexión ha sido registrada
+<<<<<<< HEAD
 
 # Logger/logger.py
 import os
@@ -83,3 +84,5 @@ class Logger:
 
     def log_error(self, message):
         self.log(message, level="ERROR")
+=======
+>>>>>>> ec128bb (Primer commit del proyecto)
