@@ -36,7 +36,7 @@ class ConnectionsHandler:
         try:
             # Ejecutar la consulta para obtener las conexiones
             cursor = db_connection.connection.cursor()
-            cursor.execute("SELECT * FROM prevision_demanda_db.connections")
+            cursor.execute("SELECT * FROM connections")
             connections = cursor.fetchall()
             cursor.close()
 
@@ -66,7 +66,7 @@ class ConnectionsHandler:
         try:
             # Ejecutar la consulta para obtener las conexiones por user_id
             cursor = db_connection.connection.cursor()
-            cursor.execute("SELECT * FROM prevision_demanda_db.connections WHERE user_id = %s", (user_id,))
+            cursor.execute("SELECT * FROM connections WHERE user_id = %s", (user_id,))
             connections = cursor.fetchall()
             cursor.close()
 
@@ -103,7 +103,7 @@ class ConnectionsHandler:
             # Ejecutar la consulta para insertar la nueva conexión
             cursor = db_connection.connection.cursor()
             cursor.execute("""
-                INSERT INTO prevision_demanda_db.connections (user_id, connection_date, disconnection_date)
+                INSERT INTO connections (user_id, connection_date, disconnection_date)
                 VALUES (%s, %s, %s)
             """, (user_id, connection_date, disconnection_date))
             db_connection.connection.commit()
@@ -138,7 +138,7 @@ class ConnectionsHandler:
             # Ejecutar la consulta para actualizar la conexión
             cursor = db_connection.connection.cursor()
             cursor.execute("""
-                UPDATE prevision_demanda_db.connections
+                UPDATE connections
                 SET connection_date = %s, disconnection_date = %s
                 WHERE user_id = %s
             """, (connection_date, disconnection_date, user_id))
@@ -168,7 +168,7 @@ class ConnectionsHandler:
         try:
             # Ejecutar la consulta para borrar la conexión
             cursor = db_connection.connection.cursor()
-            cursor.execute("DELETE FROM prevision_demanda_db.connections WHERE user_id = %s", (user_id,))
+            cursor.execute("DELETE FROM connections WHERE user_id = %s", (user_id,))
             db_connection.connection.commit()
             cursor.close()
 

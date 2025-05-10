@@ -1,4 +1,6 @@
 # Importamos las librerías necesarias
+import os
+
 import pandas as pd  # Tratamiento de datos
 import numpy as np  # Tratamiento de datos
 import requests  # Importamos datos de una dirección web
@@ -128,7 +130,8 @@ def obtener_prediccion():
     df = df[cabecera]
 
     # Importar el modelo desde un fichero
-    with open('C:/Program Files/JPC/Classifier/clf.pkl', 'rb') as file:
+    model_path = os.path.expanduser("~/JPC/Classifier/clf.pkl")
+    with open(model_path, 'rb') as file:
         modelo = pickle.load(file)
 
     # Realizar la predicción
@@ -136,12 +139,12 @@ def obtener_prediccion():
     df['Count_Predict'] = test2.astype(int)
     df_original['Count_Predict'] = test2.astype(int)
 
-    # Guardar los resultados en archivos Excel
-    current_time = time.strftime("%Y%m%d")
-    filename = current_time + "_Prediccion.xlsx"
-    # Asegúrate de que la ruta existe o cámbiala a una ruta existente
-    df.to_excel('C:/Program Files/JPC/Predicciones/' + filename, index=False)
-    df_original.to_excel('C:/Program Files/JPC/Predicciones/Original_' + filename, index=False)
+    file_dir = os.path.expanduser('~/JPC/Predicciones')
+    os.makedirs(file_dir, exist_ok=True)
+    filename = os.path.join(file_dir, f"{time.strftime('%Y%m%d')}_Prediccion.xlsx")
+    df.to_excel(filename, index=False)
+    filename = os.path.join(file_dir, f"{time.strftime('%Y%m%d')}_Original.xlsx")
+    df_original.to_excel(filename, index=False)
 
     return jsonify(df_original.to_dict(orient='records')), 200
 

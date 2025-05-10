@@ -1,10 +1,10 @@
-<<<<<<< HEAD
+
 # Adaptador BD PostgreSQL
 psycopg2-binary
-=======
+
 # Adaptador BD MySQL
 mysql-connector-python==8.3.0
->>>>>>> ec128bb (Primer commit del proyecto)
+
 # Encriptador - contraseñas
 cryptography==44.0.1
 # Consultas HTTP y creación de aplicaciones web
@@ -39,3 +39,9 @@ openmeteo-requests
 pandas
 # Openp
 openpyxl
+Flask
+Flask-Cors
+mysql-connector-python
+cryptography
+pillow
+email-validator

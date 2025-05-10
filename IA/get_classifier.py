@@ -138,7 +138,8 @@ def obtener_clasificador():
         #logger.log_to_db(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), f"El modelo más preciso es: {name_modelo_win}")
 
         # Guardar el modelo entrenado en un archivo
-        with open('C:/Program Files/JPC/Classifier/clf.pkl', 'wb') as file:
+        model_path = os.path.expanduser("~/JPC/Classifier/clf.pkl")
+        with open(model_path, 'wb') as file:
             pickle.dump(clf, file)
 
         # Eliminar la columna de modelos del DataFrame antes de devolverlo

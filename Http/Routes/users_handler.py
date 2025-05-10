@@ -57,7 +57,7 @@ class UsersHandler:
                 if not success:
                     return "Fallo al conectar con la base de datos", 500
                 cursor = db_connection.connection.cursor()
-                cursor.execute("UPDATE prevision_demanda_db.users SET password = %s WHERE id = %s", (password1, user_id))
+                cursor.execute("UPDATE users SET password = %s WHERE id = %s", (password1, user_id))
                 db_connection.connection.commit()
                 cursor.close()
                 return "Contraseña restablecida exitosamente", 200"""
@@ -73,7 +73,7 @@ class UsersHandler:
         try:
             # Ejecutar la consulta para obtener los usuarios
             cursor = db_connection.connection.cursor()
-            cursor.execute("SELECT * FROM prevision_demanda_db.users")
+            cursor.execute("SELECT * FROM users")
             users = cursor.fetchall()
             cursor.close()
 
@@ -104,7 +104,7 @@ class UsersHandler:
         try:
             # Ejecutar la consulta para obtener el usuario por ID
             cursor = db_connection.connection.cursor()
-            cursor.execute("SELECT * FROM prevision_demanda_db.users WHERE id = %s", (user_id,))
+            cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
             user = cursor.fetchone()
             cursor.close()
 
@@ -147,7 +147,7 @@ class UsersHandler:
             # Ejecutar la consulta para insertar el nuevo usuario
             cursor = db_connection.connection.cursor()
             cursor.execute("""
-                INSERT INTO prevision_demanda_db.users (name, email, nick_name, role, image, password)
+                INSERT INTO users (name, email, nick_name, role, image, password)
                 VALUES (%s, %s, %s, %s, %s, %s)
             """, (name, email, nick_name, role, image, password))
             db_connection.connection.commit()
@@ -186,7 +186,7 @@ class UsersHandler:
             # Ejecutar la consulta para actualizar el usuario
             cursor = db_connection.connection.cursor()
             cursor.execute("""
-                UPDATE prevision_demanda_db.users
+                UPDATE users
                 SET name = %s, email = %s, nick_name = %s, role = %s, image = %s, password = %s
                 WHERE id = %s
             """, (name, email, nick_name, role, image, password, user_id))
@@ -216,7 +216,7 @@ class UsersHandler:
         try:
             # Ejecutar la consulta para borrar el usuario
             cursor = db_connection.connection.cursor()
-            cursor.execute("DELETE FROM prevision_demanda_db.users WHERE id = %s", (user_id,))
+            cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
             db_connection.connection.commit()
             cursor.close()
 
@@ -248,7 +248,7 @@ class UsersHandler:
 
             # Ejecutar la consulta para verificar el login
             cursor = db_connection.connection.cursor()
-            cursor.execute("SELECT * FROM prevision_demanda_db.users WHERE email = %s AND password = %s",
+            cursor.execute("SELECT * FROM users WHERE email = %s AND password = %s",
                            (email, password))
             user = cursor.fetchone()
             cursor.close()
@@ -283,7 +283,7 @@ class UsersHandler:
         try:
             # Ejecutar la consulta para verificar si el email existe
             cursor = db_connection.connection.cursor()
-            cursor.execute("SELECT * FROM prevision_demanda_db.users WHERE email = %s", (email,))
+            cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
             user = cursor.fetchone()
             cursor.close()
 

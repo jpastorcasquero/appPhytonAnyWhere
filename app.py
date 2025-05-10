@@ -1,26 +1,25 @@
-# Paso 1: Migración a WebApp compatible con PythonAnywhere (estructura Flask)
-# Este esqueleto te permitirá cargar tu lógica existente y dejar atrás Tkinter para usar Flask
-
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from BBDD.database_functions import DatabaseFunctions
 from Logger.logger import Logger
 import os
+import smtplib
+from email.mime.text import MIMEText
 
 # Inicialización de Flask
 app = Flask(__name__)
 app.secret_key = 'clave_secreta_segura'
 CORS(app)
 
-# Ruta base del proyecto en PythonAnywhere
+# Rutas del sistema
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
 SECURE_DIR = os.path.join(BASE_DIR, 'secure')
 os.makedirs(LOG_DIR, exist_ok=True)
 os.makedirs(SECURE_DIR, exist_ok=True)
 
-# Logger y conexión
+# Logger y conexión a BD
 log_path = os.path.join(LOG_DIR, 'webapp.log')
 logger = Logger(log_path)
 db_handler = DatabaseFunctions(logger)
@@ -44,14 +43,46 @@ def obtener_usuario(user_id):
 @app.route('/usuario/crear', methods=['POST'])
 def crear_usuario():
     datos = request.form.to_dict()
-    success, message = db_handler.create_user(datos)
+    user_data = {
+        "Nombre": datos.get("nombre"),
+        "Nombre de usuario": datos.get("nick_name"),
+        "Correo": datos.get("email"),
+        "Contraseña": datos.get("password"),
+        "Rol": datos.get("role"),
+        "Imagen": datos.get("image"),
+        "Código de País 1": datos.get("country_code1"),
+        "Teléfono 1": datos.get("phone1"),
+        "Código de País 2": datos.get("country_code2"),
+        "Teléfono 2": datos.get("phone2"),
+        "Ciudad": datos.get("city"),
+        "País": datos.get("country"),
+        "Código postal": datos.get("postal_code"),
+        "Dirección": datos.get("address")
+    }
+    success, message = db_handler.create_user(user_data)
     flash(message, 'success' if success else 'error')
     return redirect(url_for('usuarios'))
 
 @app.route('/usuario/editar/<int:user_id>', methods=['POST'])
 def editar_usuario(user_id):
     datos = request.form.to_dict()
-    success, message = db_handler.save_user_data(user_id, datos)
+    user_data = {
+        "Nombre": datos.get("nombre"),
+        "Nombre de usuario": datos.get("nick_name"),
+        "Correo": datos.get("email"),
+        "Contraseña": datos.get("password"),
+        "Rol": datos.get("role"),
+        "Imagen": datos.get("image"),
+        "Código de País 1": datos.get("country_code1"),
+        "Teléfono 1": datos.get("phone1"),
+        "Código de País 2": datos.get("country_code2"),
+        "Teléfono 2": datos.get("phone2"),
+        "Ciudad": datos.get("city"),
+        "País": datos.get("country"),
+        "Código postal": datos.get("postal_code"),
+        "Dirección": datos.get("address")
+    }
+    success, message = db_handler.save_user_data(user_id, user_data)
     flash(message, 'success' if success else 'error')
     return redirect(url_for('usuarios'))
 
@@ -61,12 +92,8 @@ def eliminar_usuario(user_id):
     flash(message, 'success' if success else 'error')
     return redirect(url_for('usuarios'))
 
-# Restablecimiento de contraseña vía correo
 @app.route('/usuario/reset/<int:user_id>', methods=['GET'])
 def restablecer_contraseña(user_id):
-    from email.mime.text import MIMEText
-    import smtplib
-
     usuarios = db_handler.fetch_users_from_db()
     user = next((u for u in usuarios if int(u['id']) == user_id), None)
     if not user:
@@ -89,8 +116,6 @@ def restablecer_contraseña(user_id):
     except Exception as e:
         return jsonify({'error': f'Error al enviar el correo: {e}'}), 500
 
+# Nota: NO usar app.run en PythonAnywhere
 if __name__ == '__main__':
     app.run(debug=True)
-
-# Este archivo reemplaza la lógica tkinter con endpoints Flask.
-# Puedes crear templates HTML en una carpeta "templates" para representar la UI.

@@ -36,7 +36,7 @@ class PhonesHandler:
         try:
             # Ejecutar la consulta para obtener los teléfonos
             cursor = db_connection.connection.cursor()
-            cursor.execute("SELECT * FROM prevision_demanda_db.phones")
+            cursor.execute("SELECT * FROM phones")
             phones = cursor.fetchall()
             cursor.close()
 
@@ -66,7 +66,7 @@ class PhonesHandler:
         try:
             # Ejecutar la consulta para obtener los teléfonos por user_id
             cursor = db_connection.connection.cursor()
-            cursor.execute("SELECT * FROM prevision_demanda_db.phones WHERE user_id = %s", (user_id,))
+            cursor.execute("SELECT * FROM phones WHERE user_id = %s", (user_id,))
             phones = cursor.fetchall()
             cursor.close()
 
@@ -103,7 +103,7 @@ class PhonesHandler:
             # Ejecutar la consulta para insertar el nuevo teléfono
             cursor = db_connection.connection.cursor()
             cursor.execute("""
-                INSERT INTO prevision_demanda_db.phones (user_id, country_code, phone)
+                INSERT INTO phones (user_id, country_code, phone)
                 VALUES (%s, %s, %s)
             """, (user_id, country_code, phone))
             db_connection.connection.commit()
@@ -138,7 +138,7 @@ class PhonesHandler:
             # Ejecutar la consulta para actualizar el teléfono
             cursor = db_connection.connection.cursor()
             cursor.execute("""
-                UPDATE prevision_demanda_db.phones
+                UPDATE phones
                 SET country_code = %s, phone = %s
                 WHERE user_id = %s
             """, (country_code, phone, user_id))
@@ -168,7 +168,7 @@ class PhonesHandler:
         try:
             # Ejecutar la consulta para borrar el teléfono
             cursor = db_connection.connection.cursor()
-            cursor.execute("DELETE FROM prevision_demanda_db.phones WHERE user_id = %s", (user_id,))
+            cursor.execute("DELETE FROM phones WHERE user_id = %s", (user_id,))
             db_connection.connection.commit()
             cursor.close()
 

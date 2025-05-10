@@ -36,7 +36,7 @@ class AddressesHandler:
         try:
             # Ejecutar la consulta para obtener las direcciones
             cursor = db_connection.connection.cursor()
-            cursor.execute("SELECT * FROM prevision_demanda_db.addresses")
+            cursor.execute("SELECT * FROM addresses")
             addresses = cursor.fetchall()
             cursor.close()
 
@@ -67,7 +67,7 @@ class AddressesHandler:
         try:
             # Ejecutar la consulta para obtener las direcciones por user_id
             cursor = db_connection.connection.cursor()
-            cursor.execute("SELECT * FROM prevision_demanda_db.addresses WHERE user_id = %s", (user_id,))
+            cursor.execute("SELECT * FROM addresses WHERE user_id = %s", (user_id,))
             addresses = cursor.fetchall()
             cursor.close()
 
@@ -107,7 +107,7 @@ class AddressesHandler:
             # Ejecutar la consulta para insertar la nueva dirección
             cursor = db_connection.connection.cursor()
             cursor.execute("""
-                INSERT INTO prevision_demanda_db.addresses (user_id, country, city, address, postal_code)
+                INSERT INTO addresses (user_id, country, city, address, postal_code)
                 VALUES (%s, %s, %s, %s, %s)
             """, (user_id, country, city, address, postal_code))
             db_connection.connection.commit()
@@ -144,7 +144,7 @@ class AddressesHandler:
             # Ejecutar la consulta para actualizar la dirección
             cursor = db_connection.connection.cursor()
             cursor.execute("""
-                UPDATE prevision_demanda_db.addresses
+                UPDATE addresses
                 SET country = %s, city = %s, address = %s, postal_code = %s
                 WHERE user_id = %s
             """, (country, city, address, postal_code, user_id))
@@ -174,7 +174,7 @@ class AddressesHandler:
         try:
             # Ejecutar la consulta para borrar la dirección
             cursor = db_connection.connection.cursor()
-            cursor.execute("DELETE FROM prevision_demanda_db.addresses WHERE user_id = %s", (user_id,))
+            cursor.execute("DELETE FROM addresses WHERE user_id = %s", (user_id,))
             db_connection.connection.commit()
             cursor.close()
 

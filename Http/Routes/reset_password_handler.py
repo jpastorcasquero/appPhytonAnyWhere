@@ -196,7 +196,7 @@ class ResetPasswordHandler:
             return "Fallo al conectar con la base de datos", 500
         try:
             cursor = db_connection.connection.cursor()
-            cursor.execute("UPDATE prevision_demanda_db.users SET password = %s WHERE id = %s", (password1, user_id))
+            cursor.execute("UPDATE users SET password = %s WHERE id = %s", (password1, user_id))
             db_connection.connection.commit()
             cursor.close()
             log_message = f"Contraseña restablecida para el usuario {user_id}"
