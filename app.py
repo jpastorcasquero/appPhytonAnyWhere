@@ -116,6 +116,4 @@ def restablecer_contraseña(user_id):
     except Exception as e:
         return jsonify({'error': f'Error al enviar el correo: {e}'}), 500
 
-# Nota: NO usar app.run en PythonAnywhere
-if __name__ == '__main__':
-    app.run(debug=True)
+
