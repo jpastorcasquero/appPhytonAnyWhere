@@ -45,3 +45,4 @@ mysql-connector-python
 cryptography
 pillow
 email-validator
+gunicorn
