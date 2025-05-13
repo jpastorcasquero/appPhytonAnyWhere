@@ -17,8 +17,8 @@ from Logger.logger import Logger
 warnings.filterwarnings('ignore')
 
 # Define la ruta para el archivo de log en "Archivos de Programa/JPC"
-program_files = os.getenv('ProgramFiles')
-log_path = os.path.join(program_files, 'JPC', 'log.txt')
+home_dir = os.path.expanduser("~")
+log_path = os.path.join(home_dir, 'JPC', 'log.txt')
 logger = Logger(log_path)
 
 def obtener_clasificador():
