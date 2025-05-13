@@ -1,10 +1,10 @@
 #!/bin/bash
 
-echo "🔄  Eliminando proyecto anterior..."
+echo "🧹 Eliminando versiones anteriores..."
 rm -rf ~/prevision_demanda
 rm -rf ~/JPC
 
-echo "⬇️  Clonando el repositorio desde GitHub..."
+echo "📥 Clonando repositorio..."
 git clone https://github.com/jpastorcasquero/appPhytonAnyWhere.git ~/prevision_demanda
 
 if [ $? -ne 0 ]; then
@@ -12,16 +12,21 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-echo "📦 Instalando dependencias..."
+echo "🔧 Corrigiendo get_classifier.py para entorno Linux..."
+CLASSIFIER_FILE=~/prevision_demanda/IA/get_classifier.py
+sed -i 's|program_files = os.getenv('\''ProgramFiles'\'')|home_dir = os.path.expanduser("~")|' "$CLASSIFIER_FILE"
+sed -i 's|log_path = os.path.join(program_files, '\''JPC'\'', '\''log.txt'\'')|log_path = os.path.join(home_dir, '\''JPC'\'', '\''log.txt'\'')|' "$CLASSIFIER_FILE"
+
+echo "📦 Instalando dependencias desde requirements.txt..."
 cd ~/prevision_demanda
 pip install --user -r requirements.txt
 
 if [ $? -ne 0 ]; then
-  echo "❌ Error al instalar requirements.txt"
+  echo "❌ Error durante la instalación de requirements.txt"
   exit 1
 fi
 
-echo "🔐 Inicializando credenciales..."
+echo "🔐 Ejecutando main.py para generar credenciales cifradas..."
 python3 main.py
 
 if [ $? -ne 0 ]; then
@@ -29,5 +34,5 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-echo "✅ Proyecto desplegado correctamente en ~/prevision_demanda"
-echo "🔁 Recuerda ir a tu panel web y pulsar el botón Reload para reiniciar tu aplicación"
+echo "✅ Despliegue completado correctamente en ~/prevision_demanda"
+echo "🟢 Ahora puedes ir a tu panel web y pulsar 'Reload'"
