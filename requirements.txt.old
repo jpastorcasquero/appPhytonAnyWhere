@@ -1,0 +1,48 @@
+
+# Adaptador BD PostgreSQL
+psycopg2-binary
+
+# Adaptador BD MySQL
+mysql-connector-python==8.3.0
+
+# Encriptador - contraseñas
+cryptography==44.0.1
+# Consultas HTTP y creación de aplicaciones web
+Flask==2.3.2
+# Web WSGI (Web Server Gateway Interface)
+Werkzeug==3.0.6
+# Servidor HTTP para producción
+waitress==3.0.2
+# Cifrado y criptografía
+pycryptodome==3.21.0
+# CORS (Cross-Origin Resource Sharing) para permitir solicitudes entre diferentes dominios
+flask-cors
+# Manipulación y procesamiento de imágenes
+Pillow
+# Manejo y operaciones con matrices y números
+numpy
+# Algoritmos de aprendizaje automático
+scikit-learn==1.5.0
+# Barra de progreso para loops
+tqdm==4.66.3
+# Transmisión del estado del proceso a la web en tiempo real
+flask-socketio
+# Importación de archivos HTML
+requests==2.32.0
+requests-cache
+retry-requests
+# Conversión de XML a pandas DataFrame
+lxml2pandas
+# Captura de datos meteorológicos en formato XML
+openmeteo-requests
+# Manipulación y análisis de datos
+pandas
+# Openp
+openpyxl
+Flask
+Flask-Cors
+mysql-connector-python
+cryptography
+pillow
+email-validator
+gunicorn
