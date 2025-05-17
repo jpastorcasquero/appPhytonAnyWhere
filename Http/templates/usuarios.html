@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestión de Usuarios</title>
+    <link rel="icon" href="/static/Logo.ico" type="image/x-icon">
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f6f8;
+        }
+
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 1em;
+            text-align: center;
+        }
+
+        header img {
+            width: 40px;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+
+        main {
+            max-width: 900px;
+            margin: 2em auto;
+            background: white;
+            padding: 2em;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            color: #2c3e50;
+        }
+
+        button, select, input {
+            padding: 0.5em;
+            margin: 0.5em 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 1em;
+        }
+
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        .form-group {
+            display: none;
+            margin-top: 1em;
+        }
+
+        .avatar-option {
+            display: inline-block;
+            margin: 5px;
+            cursor: pointer;
+        }
+
+        .avatar-option img {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+        }
+
+        .avatar-option.selected img {
+            border-color: #3498db;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1em;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 0.75em;
+            text-align: center;
+        }
+
+        th {
+            background-color: #ecf0f1;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <img src="/static/Logo.ico" alt="Logo"> <span>Gestión de Usuarios</span>
+    </header>
+    <main>
+        <button onclick="toggleForm()">Agregar Usuario</button>
+        <div class="form-group" id="userForm">
+            <form id="createForm">
+                <input placeholder="Nombre" name="name" required>
+                <input placeholder="Usuario" name="nick_name" required>
+                <input placeholder="Correo" name="email" type="email" required>
+                <input placeholder="Contraseña" name="password" type="password" required>
+                <select name="role" required>
+                    <option value="" disabled selected>Seleccionar rol</option>
+                    <option value="user">Usuario</option>
+                    <option value="admin">Administrador</option>
+                </select>
+                <h3>Selecciona un avatar:</h3>
+                <div id="avatarList"></div>
+                <input type="hidden" name="image" id="selectedAvatar">
+                <button type="submit">Crear</button>
+            </form>
+        </div>
+
+        <h2>Lista de Usuarios</h2>
+        <button onclick="loadUsers()">Actualizar Lista</button>
+        <table id="usersTable">
+            <thead>
+                <tr>
+                    <th>ID</th><th>Nombre</th><th>Usuario</th><th>Correo</th><th>Rol</th><th>Imagen</th><th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </main>
+
+    <script>
+        let usuariosCache = [];
+    
+        function toggleForm(show = null) {
+            const form = document.getElementById("userForm");
+            form.style.display = show !== null ? (show ? "block" : "none") : (form.style.display === "none" || form.style.display === "" ? "block" : "none");
+        }
+    
+        async function loadUsers() {
+            const res = await fetch('/api/users/');
+            const users = await res.json();
+            usuariosCache = users; // Guardar en caché para lookup por ID
+            const tbody = document.querySelector("#usersTable tbody");
+            tbody.innerHTML = "";
+            users.forEach(u => {
+                const row = `<tr>
+                    <td>${u.id}</td>
+                    <td>${u.name}</td>
+                    <td>${u.nick_name}</td>
+                    <td>${u.email}</td>
+                    <td>${u.role}</td>
+                    <td><img src="/static/AvataresImage/${u.image}" width="40"></td>
+                    <td>
+                        <button onclick="deleteUser(${u.id})">Eliminar</button>
+                        <button onclick="sendPasswordReset(${u.id})">Resetear contraseña</button>
+                    </td>
+                </tr>`;
+                tbody.innerHTML += row;
+            });
+        }
+    
+        async function deleteUser(id) {
+            await fetch(`/api/users/${id}`, { method: 'DELETE' });
+            loadUsers();
+        }
+    
+        document.querySelector("#createForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const data = Object.fromEntries(new FormData(e.target));
+            const method = data.id ? 'PUT' : 'POST';
+            const url = data.id ? `/api/users/${data.id}` : '/api/users/';
+            delete data.id;
+    
+            await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            e.target.reset();
+            toggleForm(false);
+            loadUsers();
+        });
+    
+        async function loadAvatars() {
+            const avatarDiv = document.getElementById("avatarList");
+            avatarDiv.innerHTML = "";
+            const res = await fetch("/api/avatars");
+            const avatars = await res.json();
+            avatars.forEach(filename => {
+                const fullPath = `/static/AvataresImage/${filename}`;
+                const container = document.createElement("div");
+                container.className = "avatar-option";
+                container.innerHTML = `<img src="${fullPath}" alt="${filename}" onclick="selectAvatar(this, '${filename}')">`;
+                avatarDiv.appendChild(container);
+            });
+        }
+    
+        function selectAvatar(imgEl, filename) {
+            document.querySelectorAll(".avatar-option").forEach(opt => opt.classList.remove("selected"));
+            imgEl.parentElement.classList.add("selected");
+            document.getElementById("selectedAvatar").value = filename;
+        }
+    
+        async function editUser(id) {
+            const res = await fetch(`/api/users/${id}`);
+            const user = await res.json();
+            const form = document.querySelector("#createForm");
+            toggleForm(true);
+            form.name.value = user.name;
+            form.nick_name.value = user.nick_name;
+            form.email.value = user.email;
+            form.password.value = user.password;
+            form.role.value = user.role;
+            document.getElementById("selectedAvatar").value = user.image;
+            form.insertAdjacentHTML("beforeend", `<input type="hidden" name="id" value="${user.id}">`);
+            loadAvatars();
+        }
+    
+        async function sendPasswordReset(id) {
+            const user = usuariosCache.find(u => u.id === id);
+            if (!user) {
+                alert("Usuario no encontrado.");
+                return;
+            }
+            const res = await fetch("/users/forgot_password", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: user.email })
+            });
+            const result = await res.json();
+            if (res.ok) {
+                alert(`Se ha enviado el correo de reseteo a ${user.email}`);
+            } else {
+                alert(`Error al enviar correo: ${result.error || "desconocido"}`);
+            }
+        }
+    
+        loadUsers();
+        loadAvatars();
+    </script>
+
+</body>
+</html>

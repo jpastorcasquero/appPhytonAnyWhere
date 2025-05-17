@@ -1,18 +1,18 @@
 from flask import Blueprint, jsonify
 from IA.get_classifier import obtener_clasificador
-
+import threading
 
 get_classifier_bp = Blueprint('get_classifier', __name__)
-is_running = False
-
+classifier_lock = threading.Lock()
 
 @get_classifier_bp.route('/get_classifier', methods=['GET'])
 def get_classifier():
-    global is_running
-    if is_running:
-        return jsonify({"success": False, "message": "Proceso ejecutandose actualmente"})
+    if not classifier_lock.acquire(blocking=False):
+        return jsonify({"success": False, "message": "Proceso en ejecución. Por favor espera."}), 429
 
-    is_running = True
-    resultado = obtener_clasificador()
-    is_running = False
-    return resultado#jsonify({"success": resultado})
+    try:
+        return obtener_clasificador()  # ya devuelve jsonify(...)
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Error durante la ejecución: {str(e)}"}), 500
+    finally:
+        classifier_lock.release()

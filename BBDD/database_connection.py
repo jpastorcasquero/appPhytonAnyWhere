@@ -1,8 +1,4 @@
-import os
-import base64
-import json
 import pymysql
-from Cifrado.encryption import Encryption
 
 class DatabaseConnection:
     def __init__(self, host="", database="", user="", password=""):
@@ -19,12 +15,24 @@ class DatabaseConnection:
                 user=self.user,
                 password=self.password,
                 database=self.database,
-                cursorclass=pymysql.cursors.DictCursor
+                cursorclass=pymysql.cursors.DictCursor,
+                autocommit=True,              # <- permite commits automáticos
+                connect_timeout=10,           # <- timeout para evitar bloqueos
+                charset='utf8mb4'
             )
             return True
         except Exception as e:
-            print(f"Error al conectar a la base de datos: {e}")
+            print(f"❌ Error al conectar a la base de datos: {e}")
             return False
+
+    def is_connected(self):
+        try:
+            # Este método verifica si la conexión está activa
+            self.connection.ping(reconnect=True)
+            return True
+        except Exception as e:
+            print(f"⚠️ Conexión perdida. Intentando reconectar... {e}")
+            return self.connect()
 
     def close(self):
         if self.connection:
@@ -36,47 +44,14 @@ class DatabaseConnection:
         return False, "No hay conexión activa."
 
     def execute_query(self, query, params=None):
+        if not self.is_connected():
+            print("❌ No se pudo ejecutar la consulta porque no hay conexión.")
+            return []
+
         try:
             with self.connection.cursor() as cursor:
                 cursor.execute(query, params or ())
-                result = cursor.fetchall()
-            return result
+                return cursor.fetchall()
         except Exception as e:
-            print(f"Error al ejecutar consulta: {e}")
+            print(f"❌ Error al ejecutar consulta: {e}")
             return []
-
-    def save_credentials(self):
-        data = {
-            "host": self.host,
-            "database": self.database,
-            "user": self.user,
-            "password": self.password
-        }
-
-        enc = Encryption("JPc11082006")
-        encrypted = enc.encrypt(json.dumps(data))
-
-        home = os.path.expanduser("~")
-        file_path = os.path.join(home, "JPC", "conexionBD.enc")
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-
-        with open(file_path, "w") as f:
-            f.write(encrypted)
-
-    @staticmethod
-    def load_credentials():
-        home = os.path.expanduser("~")
-        file_path = os.path.join(home, "JPC", "conexionBD.enc")
-        with open(file_path, "r") as f:
-            encrypted = f.read()
-
-        enc = Encryption("JPc11082006")
-        decrypted = enc.decrypt(encrypted)
-        data = json.loads(decrypted)
-
-        return DatabaseConnection(
-            host=data["host"],
-            database=data["database"],
-            user=data["user"],
-            password=data["password"]
-        )

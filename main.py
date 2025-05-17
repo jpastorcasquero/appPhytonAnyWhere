@@ -13,12 +13,15 @@ def initialize_credentials_if_missing():
             user="jpastorcasquero",
             password="JPc11082006"
         )
-        db.save_credentials()
-        print("Credenciales guardadas correctamente.")
+        if db.connect():  # 💡 Conectamos antes de guardar
+            db.save_credentials()
+            print("✅ Credenciales guardadas y conexión exitosa.")
+        else:
+            print("❌ Error al conectar con la base de datos. No se guardaron credenciales.")
     else:
-        print("Credenciales ya existen, no se sobrescriben.")
+        print("ℹ️ Credenciales ya existen, no se sobrescriben.")
 
 if __name__ == "__main__":
     initialize_credentials_if_missing()
     flask_app = FlaskApp()
-    #flask_app.run()
+    # flask_app.run()  # Solo para desarrollo local

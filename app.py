@@ -31,8 +31,7 @@ def index():
 
 @app.route('/usuarios')
 def usuarios():
-    usuarios = db_handler.fetch_users_from_db()
-    return render_template('usuarios.html', usuarios=usuarios)
+    return render_template('usuarios.html')
 
 @app.route('/usuario/<int:user_id>', methods=['GET'])
 def obtener_usuario(user_id):

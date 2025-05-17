@@ -12,6 +12,7 @@ functions = handler.functions
 @users_api.route("/", methods=["GET"])
 def get_users():
     users = functions.fetch_users_from_db()
+    logger.log(f"📥 Petición a /api/users/ -> {users}")
     return jsonify(users), 200
 
 @users_api.route("/", methods=["POST"])

@@ -1,11 +1,16 @@
 from flask import jsonify, request
-from BBDD.database_connection import DatabaseConnection
-from datetime import datetime
+from BBDD.database_connection_handler import DatabaseConnectionHandler
+from Logger.logger import Logger
 
 class ConnectionsHandler:
     def __init__(self, app, logger):
         self.app = app
         self.logger = logger
+
+        # Obtener conexión ya establecida desde el handler
+        handler = DatabaseConnectionHandler(logger)
+        self.db_connection = handler.functions.db_connection
+
         self.setup_routes()
 
     def setup_routes(self):
@@ -26,160 +31,85 @@ class ConnectionsHandler:
                 return self.delete_connection(user_id)
 
     def get_all_connections(self):
-        # Cargar las credenciales de la base de datos
-        db_connection = DatabaseConnection.load_credentials()
-        success = db_connection.connect()
-
-        if not success:
-            return jsonify({'error': 'Fallo al conectar con la base de datos.'}), 500
-
         try:
-            # Ejecutar la consulta para obtener las conexiones
-            cursor = db_connection.connection.cursor()
+            cursor = self.db_connection.connection.cursor()
             cursor.execute("SELECT * FROM connections")
             connections = cursor.fetchall()
             cursor.close()
 
-            # Construir una lista de diccionarios con los resultados
-            connection_list = [{'id': connection[0], 'user_id': connection[1], 'connection_date': connection[2], 'disconnection_date': connection[3]} for connection in connections]
-
-            # Registrar la petición y la respuesta en el archivo de logs
-            log_message = f"Petición recibida: {request.url}\nRespuesta: {connection_list}\n"
-            self.logger.log(log_message)
-
+            connection_list = [{'id': c[0], 'user_id': c[1], 'connection_date': c[2], 'disconnection_date': c[3]} for c in connections]
+            self.logger.log(f"[GET] /connections -> {connection_list}")
             return jsonify(connection_list), 200
         except Exception as e:
-            # Registrar el error en el archivo de logs
-            log_message = f"Error en la consulta: {str(e)}\n"
-            self.logger.log(log_message)
-
+            self.logger.log(f"❌ Error en get_all_connections: {e}")
             return jsonify({'error': str(e)}), 500
 
     def get_connections_by_user(self, user_id):
-        # Cargar las credenciales de la base de datos
-        db_connection = DatabaseConnection.load_credentials()
-        success = db_connection.connect()
-
-        if not success:
-            return jsonify({'error': 'Fallo al conectar con la base de datos.'}), 500
-
         try:
-            # Ejecutar la consulta para obtener las conexiones por user_id
-            cursor = db_connection.connection.cursor()
+            cursor = self.db_connection.connection.cursor()
             cursor.execute("SELECT * FROM connections WHERE user_id = %s", (user_id,))
             connections = cursor.fetchall()
             cursor.close()
 
-            # Construir una lista de diccionarios con los resultados
-            connection_list = [{'id': connection[0], 'user_id': connection[1], 'connection_date': connection[2], 'disconnection_date': connection[3]} for connection in connections]
-
-            # Registrar la petición y la respuesta en el archivo de logs
-            log_message = f"Petición recibida: {request.url}\nRespuesta: {connection_list}\n"
-            self.logger.log(log_message)
-
+            connection_list = [{'id': c[0], 'user_id': c[1], 'connection_date': c[2], 'disconnection_date': c[3]} for c in connections]
+            self.logger.log(f"[GET] /connections/{user_id} -> {connection_list}")
             return jsonify(connection_list), 200
         except Exception as e:
-            # Registrar el error en el archivo de logs
-            log_message = f"Error en la consulta: {str(e)}\n"
-            self.logger.log(log_message)
-
+            self.logger.log(f"❌ Error en get_connections_by_user: {e}")
             return jsonify({'error': str(e)}), 500
 
     def create_connection(self):
-        # Cargar las credenciales de la base de datos
-        db_connection = DatabaseConnection.load_credentials()
-        success = db_connection.connect()
-
-        if not success:
-            return jsonify({'error': 'Fallo al conectar con la base de datos.'}), 500
-
         try:
-            # Obtener los datos de la solicitud
             data = request.get_json()
-            user_id = data.get('user_id')
-            connection_date = data.get('connection_date')
-            disconnection_date = data.get('disconnection_date')
-
-            # Ejecutar la consulta para insertar la nueva conexión
-            cursor = db_connection.connection.cursor()
+            cursor = self.db_connection.connection.cursor()
             cursor.execute("""
                 INSERT INTO connections (user_id, connection_date, disconnection_date)
                 VALUES (%s, %s, %s)
-            """, (user_id, connection_date, disconnection_date))
-            db_connection.connection.commit()
+            """, (
+                data.get('user_id'),
+                data.get('connection_date'),
+                data.get('disconnection_date')
+            ))
+            self.db_connection.connection.commit()
             cursor.close()
 
-            # Registrar la petición y la respuesta en el archivo de logs
-            log_message = f"Petición recibida: {request.url}\nDatos insertados: {data}\n"
-            self.logger.log(log_message)
-
+            self.logger.log(f"[POST] /connections -> {data}")
             return jsonify({'message': 'Conexión creada exitosamente'}), 201
         except Exception as e:
-            # Registrar el error en el archivo de logs
-            log_message = f"Error al crear la conexión: {str(e)}\n"
-            self.logger.log(log_message)
-
+            self.logger.log(f"❌ Error en create_connection: {e}")
             return jsonify({'error': str(e)}), 500
 
     def update_connection(self, user_id):
-        # Cargar las credenciales de la base de datos
-        db_connection = DatabaseConnection.load_credentials()
-        success = db_connection.connect()
-
-        if not success:
-            return jsonify({'error': 'Fallo al conectar con la base de datos.'}), 500
-
         try:
-            # Obtener los datos de la solicitud
             data = request.get_json()
-            connection_date = data.get('connection_date')
-            disconnection_date = data.get('disconnection_date')
-
-            # Ejecutar la consulta para actualizar la conexión
-            cursor = db_connection.connection.cursor()
+            cursor = self.db_connection.connection.cursor()
             cursor.execute("""
                 UPDATE connections
                 SET connection_date = %s, disconnection_date = %s
                 WHERE user_id = %s
-            """, (connection_date, disconnection_date, user_id))
-            db_connection.connection.commit()
+            """, (
+                data.get('connection_date'),
+                data.get('disconnection_date'),
+                user_id
+            ))
+            self.db_connection.connection.commit()
             cursor.close()
 
-            # Registrar la petición y la respuesta en el archivo de logs
-            log_message = f"Petición recibida: {request.url}\nDatos actualizados: {data}\n"
-            self.logger.log(log_message)
-
+            self.logger.log(f"[PUT] /connections/{user_id} -> {data}")
             return jsonify({'message': 'Conexión actualizada exitosamente'}), 200
         except Exception as e:
-            # Registrar el error en el archivo de logs
-            log_message = f"Error al actualizar la conexión: {str(e)}\n"
-            self.logger.log(log_message)
-
+            self.logger.log(f"❌ Error en update_connection: {e}")
             return jsonify({'error': str(e)}), 500
 
     def delete_connection(self, user_id):
-        # Cargar las credenciales de la base de datos
-        db_connection = DatabaseConnection.load_credentials()
-        success = db_connection.connect()
-
-        if not success:
-            return jsonify({'error': 'Fallo al conectar con la base de datos.'}), 500
-
         try:
-            # Ejecutar la consulta para borrar la conexión
-            cursor = db_connection.connection.cursor()
+            cursor = self.db_connection.connection.cursor()
             cursor.execute("DELETE FROM connections WHERE user_id = %s", (user_id,))
-            db_connection.connection.commit()
+            self.db_connection.connection.commit()
             cursor.close()
 
-            # Registrar la petición y la respuesta en el archivo de logs
-            log_message = f"Petición recibida: {request.url}\nConexión borrada para user_id: {user_id}\n"
-            self.logger.log(log_message)
-
+            self.logger.log(f"[DELETE] /connections/{user_id} -> eliminado")
             return jsonify({'message': 'Conexión borrada exitosamente'}), 200
         except Exception as e:
-            # Registrar el error en el archivo de logs
-            log_message = f"Error al borrar la conexión: {str(e)}\n"
-            self.logger.log(log_message)
-
+            self.logger.log(f"❌ Error en delete_connection: {e}")
             return jsonify({'error': str(e)}), 500
