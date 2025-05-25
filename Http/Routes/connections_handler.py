@@ -4,8 +4,7 @@ class ConnectionsHandler:
     def __init__(self, app, logger, db_connection):
         self.app = app
         self.logger = logger
-        self.db_connection = db_connection  # ✅ Reutilizamos la conexión principal
-
+        self.db_connection = db_connection
         self.setup_routes()
 
     def setup_routes(self):
@@ -31,24 +30,38 @@ class ConnectionsHandler:
                 cursor.execute("SELECT * FROM connections")
                 connections = cursor.fetchall()
 
-            connection_list = [{'id': c[0], 'user_id': c[1], 'connection_date': c[2], 'disconnection_date': c[3]} for c in connections]
+            connection_list = [
+                {
+                    'id': c['id'],
+                    'user_id': c['user_id'],
+                    'connection_date': c['connection_date'],
+                    'disconnection_date': c['disconnection_date']
+                } for c in connections
+            ]
             self.logger.log(f"[GET] /connections -> {connection_list}")
             return jsonify(connection_list), 200
         except Exception as e:
-            self.logger.log(f"❌ Error en get_all_connections: {e}")
+            self.logger.log(f"❌ Error en get_all_connections: {repr(e)}")
             return jsonify({'error': str(e)}), 500
 
     def get_connections_by_user(self, user_id):
         try:
             with self.db_connection.connection.cursor() as cursor:
-                cursor.execute("SELECT * FROM connections WHERE user_id = %s", (user_id,))
+                cursor.execute("SELECT * FROM connections WHERE user_id = %s ORDER BY connection_date DESC", (user_id,))
                 connections = cursor.fetchall()
 
-            connection_list = [{'id': c[0], 'user_id': c[1], 'connection_date': c[2], 'disconnection_date': c[3]} for c in connections]
+            connection_list = [
+                {
+                    'id': c['id'],
+                    'user_id': c['user_id'],
+                    'connection_date': c['connection_date'],
+                    'disconnection_date': c['disconnection_date']
+                } for c in connections
+            ]
             self.logger.log(f"[GET] /connections/{user_id} -> {connection_list}")
             return jsonify(connection_list), 200
         except Exception as e:
-            self.logger.log(f"❌ Error en get_connections_by_user: {e}")
+            self.logger.log(f"❌ Error en get_connections_by_user: {repr(e)}")
             return jsonify({'error': str(e)}), 500
 
     def create_connection(self):
@@ -68,7 +81,7 @@ class ConnectionsHandler:
             self.logger.log(f"[POST] /connections -> {data}")
             return jsonify({'message': 'Conexión creada exitosamente'}), 201
         except Exception as e:
-            self.logger.log(f"❌ Error en create_connection: {e}")
+            self.logger.log(f"❌ Error en create_connection: {repr(e)}")
             return jsonify({'error': str(e)}), 500
 
     def update_connection(self, user_id):
@@ -89,7 +102,7 @@ class ConnectionsHandler:
             self.logger.log(f"[PUT] /connections/{user_id} -> {data}")
             return jsonify({'message': 'Conexión actualizada exitosamente'}), 200
         except Exception as e:
-            self.logger.log(f"❌ Error en update_connection: {e}")
+            self.logger.log(f"❌ Error en update_connection: {repr(e)}")
             return jsonify({'error': str(e)}), 500
 
     def delete_connection(self, user_id):
@@ -101,5 +114,5 @@ class ConnectionsHandler:
             self.logger.log(f"[DELETE] /connections/{user_id} -> eliminado")
             return jsonify({'message': 'Conexión borrada exitosamente'}), 200
         except Exception as e:
-            self.logger.log(f"❌ Error en delete_connection: {e}")
+            self.logger.log(f"❌ Error en delete_connection: {repr(e)}")
             return jsonify({'error': str(e)}), 500
