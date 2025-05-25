@@ -191,22 +191,48 @@ class UsersHandler:
         try:
             data = request.get_json()
             cursor = self.db_connection.connection.cursor()
+
+            # Recuperar contraseña si no viene
+            password = data.get('password')
+            if not password:
+                cursor.execute("SELECT password FROM users WHERE id = %s", (user_id,))
+                result = cursor.fetchone()
+                if not result:
+                    cursor.close()
+                    return jsonify({'error': 'Usuario no encontrado'}), 404
+                password = result['password']
+
+            name = data.get('name')
+            email = data.get('email')
+            nick_name = data.get('nick_name')
+            role = data.get('role')
+            image = data.get('image')
+
+            # Validar duplicado de nick_name
+            cursor.execute("""
+                SELECT id FROM users WHERE nick_name = %s AND id != %s
+            """, (nick_name, user_id))
+            duplicate = cursor.fetchone()
+            if duplicate:
+                cursor.close()
+                return jsonify({'error': 'El nombre de usuario ya está en uso por otro usuario.'}), 409
+
+            # Ejecutar actualización
             cursor.execute("""
                 UPDATE users
                 SET name = %s, email = %s, nick_name = %s, role = %s, image = %s, password = %s
                 WHERE id = %s
-            """, (
-                data['name'], data['email'], data['nick_name'],
-                data['role'], data['image'], data['password'], user_id
-            ))
+            """, (name, email, nick_name, role, image, password, user_id))
             self.db_connection.connection.commit()
             cursor.close()
 
             self.logger.log(f"PUT /users/{user_id}\nActualizado: {data}")
             return jsonify({'message': 'Usuario actualizado exitosamente'}), 200
+
         except Exception as e:
             self.logger.log(f"❌ Error en update_user: {repr(e)}")
             return jsonify({'error': str(e)}), 500
+
 
     def delete_user(self, user_id):
         if not self.db_connection or not self.db_connection.connection:

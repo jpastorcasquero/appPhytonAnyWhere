@@ -12,31 +12,40 @@ class AddressesHandler:
         self.setup_routes()
 
     def setup_routes(self):
-        @self.app.route('/addresses', methods=['GET', 'POST'])
+        @self.app.route('/addresses', methods=['GET', 'POST', 'OPTIONS'])
         def handle_addresses():
-            if request.method == 'GET':
+            if request.method == 'OPTIONS':
+                return self._cors_preflight_response()
+            elif request.method == 'GET':
                 return self.get_all_addresses()
             elif request.method == 'POST':
                 return self.create_address()
 
-        @self.app.route('/addresses/<int:user_id>', methods=['GET', 'PUT', 'DELETE'])
+        @self.app.route('/addresses/<int:user_id>', methods=['GET', 'PUT', 'DELETE', 'OPTIONS'])
         def handle_address_by_user(user_id):
-            if request.method == 'GET':
+            if request.method == 'OPTIONS':
+                return self._cors_preflight_response()
+            elif request.method == 'GET':
                 return self.get_addresses_by_user(user_id)
             elif request.method == 'PUT':
                 return self.update_address(user_id)
             elif request.method == 'DELETE':
                 return self.delete_address(user_id)
 
+    def _cors_preflight_response(self):
+        response = jsonify({'message': 'Preflight check OK'})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+        return response, 200
+
     def get_all_addresses(self):
         if not self.db_connection or not self.db_connection.connection:
             return jsonify({'error': 'No hay conexión a la base de datos'}), 500
-
         try:
             with self.db_connection.connection.cursor() as cursor:
                 cursor.execute("SELECT * FROM addresses")
                 addresses = cursor.fetchall()
-
             address_list = [{
                 'id': a['id'],
                 'user_id': a['user_id'],
@@ -45,7 +54,6 @@ class AddressesHandler:
                 'address': a['address'],
                 'postal_code': a['postal_code']
             } for a in addresses]
-
             self.logger.log(f"GET /addresses\nRespuesta: {address_list}")
             return jsonify(address_list), 200
         except Exception as e:
@@ -55,12 +63,10 @@ class AddressesHandler:
     def get_addresses_by_user(self, user_id):
         if not self.db_connection or not self.db_connection.connection:
             return jsonify({'error': 'No hay conexión a la base de datos'}), 500
-
         try:
             with self.db_connection.connection.cursor() as cursor:
                 cursor.execute("SELECT * FROM addresses WHERE user_id = %s", (user_id,))
                 addresses = cursor.fetchall()
-
             address_list = [{
                 'id': a['id'],
                 'user_id': a['user_id'],
@@ -69,7 +75,6 @@ class AddressesHandler:
                 'address': a['address'],
                 'postal_code': a['postal_code']
             } for a in addresses]
-
             self.logger.log(f"GET /addresses/{user_id}\nRespuesta: {address_list}")
             return jsonify(address_list), 200
         except Exception as e:
@@ -79,7 +84,6 @@ class AddressesHandler:
     def create_address(self):
         if not self.db_connection or not self.db_connection.connection:
             return jsonify({'error': 'No hay conexión a la base de datos'}), 500
-
         try:
             data = request.get_json()
             self.logger.log(f"📥 Datos recibidos en POST /addresses: {data}")
@@ -111,7 +115,6 @@ class AddressesHandler:
 
             self.logger.log(f"✅ Dirección insertada: {response}")
             return jsonify(response), 201
-
         except Exception as e:
             self.logger.log(f"❌ Error en create_address: {repr(e)}")
             return jsonify({'error': repr(e)}), 500
@@ -119,7 +122,6 @@ class AddressesHandler:
     def update_address(self, user_id):
         if not self.db_connection or not self.db_connection.connection:
             return jsonify({'error': 'No hay conexión a la base de datos'}), 500
-
         try:
             data = request.get_json()
             with self.db_connection.connection.cursor() as cursor:
@@ -132,7 +134,6 @@ class AddressesHandler:
                     data['postal_code'], user_id
                 ))
                 self.db_connection.connection.commit()
-
             self.logger.log(f"PUT /addresses/{user_id}\nActualizado: {data}")
             return jsonify({'message': 'Dirección actualizada exitosamente'}), 200
         except Exception as e:
@@ -142,12 +143,10 @@ class AddressesHandler:
     def delete_address(self, user_id):
         if not self.db_connection or not self.db_connection.connection:
             return jsonify({'error': 'No hay conexión a la base de datos'}), 500
-
         try:
             with self.db_connection.connection.cursor() as cursor:
                 cursor.execute("DELETE FROM addresses WHERE user_id = %s", (user_id,))
                 self.db_connection.connection.commit()
-
             self.logger.log(f"DELETE /addresses/{user_id}\nEliminado.")
             return jsonify({'message': 'Dirección eliminada correctamente'}), 200
         except Exception as e:

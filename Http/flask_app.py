@@ -23,13 +23,25 @@ from Http.Routes.password_reset_service import PasswordResetService
 class FlaskApp:
     def __init__(self):
         self.app = Flask(__name__, static_folder="static")
-        CORS(self.app, resources={r"/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]}})
+
+        # ✅ Configuración de CORS para producción
+        CORS(self.app, supports_credentials=True, resources={
+            r"/*": {
+                "origins": [
+                    "http://localhost:4200",                    # para desarrollo local
+                    "https://tu-dominio-produccion.com"        # sustituye por tu dominio real
+                ],
+                "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+                "allow_headers": ["Content-Type", "Authorization"]
+            }
+        })
+
         self.socketio = SocketIO(self.app, cors_allowed_origins="*")
 
         os.makedirs('/home/jpastorcasquero/JPC', exist_ok=True)
         log_path = '/home/jpastorcasquero/JPC/log.txt'
 
-        # 🔌 Conexión central
+        # 🔌 Conexión a la base de datos
         self.db_connection = DatabaseConnection(
             host="jpastorcasquero.mysql.pythonanywhere-services.com",
             database="jpastorcasquero$prevision_demanda_db",
@@ -43,7 +55,7 @@ class FlaskApp:
         # 📝 Logger con conexión activa
         self.logger = Logger(log_path, db_connection=self.db_connection.connection)
 
-        # 🚏 Handlers principales con conexión compartida
+        # 🚏 Handlers
         self.users_handler = UsersHandler(self.app, self.logger)
         self.addresses_handler = AddressesHandler(self.app, self.logger, self.db_connection)
         self.phones_handler = PhonesHandler(self.app, self.logger, self.db_connection)
@@ -53,7 +65,7 @@ class FlaskApp:
 
         # 🔁 Blueprints RESTful
         self.functions = DatabaseFunctions(self.logger)
-        self.functions.db_connection = self.db_connection  # ✅ NO crear nueva conexión
+        self.functions.db_connection = self.db_connection
         create_users_routes(self.app, self.logger, self.functions)
         self.app.register_blueprint(get_classifier_bp)
         self.app.register_blueprint(get_prediction_bp)
@@ -96,3 +108,10 @@ class FlaskApp:
     def run(self):
         if os.getenv('PA_ENV') is None:
             self.app.run(host='127.0.0.1', port=5001, debug=True)
+
+    def add_cors_headers(self, response):
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,DELETE,OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
+        return response
+
