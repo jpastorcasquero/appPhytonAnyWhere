@@ -1,6 +1,7 @@
 from flask import jsonify, request
 from BBDD.database_connection_handler import DatabaseConnectionHandler
 from BBDD.validator_UI import Validator
+from datetime import datetime
 
 class UsersHandler:
     def __init__(self, app, logger):
@@ -32,9 +33,102 @@ class UsersHandler:
         def login():
             return self.login_user()
 
+        @self.app.route('/users/logout', methods=['POST'])
+        def logout():
+            return self.logout_user()
+
         @self.app.route('/users/check_email/<string:email>', methods=['GET'])
         def check_email(email):
             return self.check_email_exists(email)
+
+    def login_user(self):
+        if not self.db_connection or not self.db_connection.connection:
+            return jsonify({'error': 'Conexión a base de datos no disponible'}), 500
+        try:
+            data = request.get_json(force=True)
+            username = data.get("username") or data.get("email")
+            password = data.get("password")
+
+            cursor = self.db_connection.connection.cursor()
+            cursor.execute("""
+                SELECT * FROM users
+                WHERE (email = %s OR nick_name = %s) AND password = %s
+            """, (username, username, password))
+            user = cursor.fetchone()
+
+            if not user:
+                return jsonify({"success": False, "message": "Credenciales incorrectas"}), 401
+
+            now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+            cursor.execute("""
+                SELECT id FROM connections
+                WHERE user_id = %s AND disconnection_date IS NULL
+                ORDER BY connection_date DESC
+                LIMIT 1
+            """, (user['id'],))
+            existing = cursor.fetchone()
+
+            if existing:
+                cursor.execute("""
+                    UPDATE connections
+                    SET disconnection_date = %s
+                    WHERE id = %s
+                """, (now, existing['id']))
+                self.db_connection.connection.commit()
+                self.logger.log(f"⚠️ Sesión anterior cerrada automáticamente para user_id={user['id']}")
+
+            cursor.execute("""
+                INSERT INTO connections (user_id, connection_date, disconnection_date)
+                VALUES (%s, %s, NULL)
+            """, (user['id'], now))
+            self.db_connection.connection.commit()
+            cursor.close()
+
+            self.logger.log(f"✅ Nueva conexión insertada para user_id={user['id']}")
+
+            if "password" in user:
+                user.pop("password")
+
+            return jsonify({"success": True, "user": user}), 200
+
+        except Exception as e:
+            self.logger.log(f"❌ Error en login_user: {repr(e)}")
+            return jsonify({'error': str(e)}), 500
+
+    def logout_user(self):
+        if not self.db_connection or not self.db_connection.connection:
+            return jsonify({'error': 'Conexión a base de datos no disponible'}), 500
+        try:
+            data = request.get_json(force=True)
+            user_id = data.get("user_id")
+
+            if not user_id:
+                return jsonify({"error": "user_id es obligatorio"}), 400
+
+            now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+            cursor = self.db_connection.connection.cursor()
+            affected = cursor.execute("""
+                UPDATE connections
+                SET disconnection_date = %s
+                WHERE user_id = %s AND disconnection_date IS NULL
+                ORDER BY connection_date DESC
+                LIMIT 1
+            """, (now, user_id))
+            self.db_connection.connection.commit()
+            cursor.close()
+
+            if affected == 0:
+                self.logger.log("⚠️ No se actualizó ninguna conexión (quizá ya estaba cerrada)")
+                return jsonify({"warning": "No había ninguna sesión abierta"}), 200
+
+            self.logger.log(f"✅ Logout registrado para user_id={user_id}")
+            return jsonify({"message": "Usuario desconectado correctamente"}), 200
+
+        except Exception as e:
+            self.logger.log(f"❌ Error en logout_user: {repr(e)}")
+            return jsonify({'error': str(e)}), 500
 
     def get_all_users(self):
         try:
@@ -42,7 +136,6 @@ class UsersHandler:
             cursor.execute("SELECT * FROM users")
             users = cursor.fetchall()
             cursor.close()
-
             self.logger.log(f"GET /users\nRespuesta: {users}")
             return jsonify(users), 200
         except Exception as e:
@@ -72,9 +165,7 @@ class UsersHandler:
             return jsonify({'error': 'Conexión a base de datos no disponible'}), 500
         try:
             data = request.get_json()
-            self.logger.log(f"Datos recibidos en create_user: {data}")  # <--- LOG IMPORTANTE
-
-            # Validación mínima
+            self.logger.log(f"Datos recibidos en create_user: {data}")
             required_fields = ['name', 'email', 'nick_name', 'role', 'image', 'password']
             for field in required_fields:
                 if field not in data or not data[field]:
@@ -91,7 +182,7 @@ class UsersHandler:
             self.logger.log(f"POST /users\nInsertado: {data}")
             return jsonify({'message': 'Usuario creado exitosamente'}), 201
         except Exception as e:
-            self.logger.log(f"Error en create_user: {repr(e)}")  # usa repr para ver el tipo de error
+            self.logger.log(f"Error en create_user: {repr(e)}")
             return jsonify({'error': str(e)}), 500
 
     def update_user(self, user_id):
@@ -130,26 +221,6 @@ class UsersHandler:
             return jsonify({'message': 'Usuario borrado exitosamente'}), 200
         except Exception as e:
             self.logger.log(f"❌ Error en delete_user: {repr(e)}")
-            return jsonify({'error': str(e)}), 500
-
-    def login_user(self):
-        if not self.db_connection or not self.db_connection.connection:
-            return jsonify({'error': 'Conexión a base de datos no disponible'}), 500
-        try:
-            data = request.get_json()
-            cursor = self.db_connection.connection.cursor()
-            cursor.execute("SELECT * FROM users WHERE email = %s AND password = %s",
-                           (data['email'], data['password']))
-            user = cursor.fetchone()
-            cursor.close()
-
-            if user:
-                self.logger.log(f"POST /users/login\nLogin exitoso: {user}")
-                return jsonify(user), 200
-            else:
-                return jsonify({'error': 'Email o contraseña incorrectos'}), 401
-        except Exception as e:
-            self.logger.log(f"❌ Error en login_user: {repr(e)}")
             return jsonify({'error': str(e)}), 500
 
     def check_email_exists(self, email):
