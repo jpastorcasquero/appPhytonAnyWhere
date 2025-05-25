@@ -1,16 +1,13 @@
 from flask import Blueprint, render_template_string, request, jsonify
-from BBDD.database_connection_handler import DatabaseConnectionHandler
 from Logger.logger import Logger
 from BBDD.validator_UI import Validator
 
 reset_password_bp = Blueprint('reset_password_bp', __name__)
 
 class ResetPasswordHandler:
-    def __init__(self, logger: Logger):
+    def __init__(self, logger: Logger, db_connection):
         self.logger = logger
-        handler = DatabaseConnectionHandler(logger)
-        handler.functions.load_and_connect()
-        self.db_connection = handler.functions.db_connection
+        self.db_connection = db_connection  # ✅ Se recibe del exterior
         self.setup_routes()
 
     def setup_routes(self):
@@ -106,10 +103,9 @@ class ResetPasswordHandler:
             return render_template_string(self.get_reset_password_form(), user_id=user_id, error=error_message)
 
         try:
-            cursor = self.db_connection.connection.cursor()
-            cursor.execute("UPDATE users SET password = %s WHERE id = %s", (password1, user_id))
-            self.db_connection.connection.commit()
-            cursor.close()
+            with self.db_connection.connection.cursor() as cursor:
+                cursor.execute("UPDATE users SET password = %s WHERE id = %s", (password1, user_id))
+                self.db_connection.connection.commit()
 
             self.logger.log(f"🔐 Contraseña restablecida para el usuario {user_id}")
             return "✅ Contraseña restablecida exitosamente"

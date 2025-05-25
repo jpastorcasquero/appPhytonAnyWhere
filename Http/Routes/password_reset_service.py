@@ -1,26 +1,12 @@
 from flask import request, jsonify
 import smtplib
 from email.mime.text import MIMEText
-from BBDD.database_connection import DatabaseConnection
 from Logger.logger import Logger
 
 class PasswordResetService:
-    def __init__(self, logger: Logger):
+    def __init__(self, logger: Logger, db_connection):
         self.logger = logger
-
-        # Conexión directa sin pasar por handler
-        self.db_connection = DatabaseConnection(
-            host="jpastorcasquero.mysql.pythonanywhere-services.com",
-            database="jpastorcasquero$prevision_demanda_db",
-            user="jpastorcasquero",
-            password="JPc11082006"
-        )
-
-        # Intenta conectar directamente
-        connected = self.db_connection.connect()
-        if not connected:
-            self.logger.log("❌ No se pudo establecer la conexión en PasswordResetService")
-            self.db_connection = None
+        self.db_connection = db_connection  # ✅ conexión reutilizada
 
     def send_reset_email(self, email):
         if not self.db_connection or not self.db_connection.connection:
@@ -28,10 +14,9 @@ class PasswordResetService:
             return jsonify({"error": "No hay conexión a la base de datos."}), 500
 
         try:
-            cursor = self.db_connection.connection.cursor()
-            cursor.execute("SELECT id, name, nick_name, email FROM users WHERE email = %s", (email,))
-            user = cursor.fetchone()
-            cursor.close()
+            with self.db_connection.connection.cursor() as cursor:
+                cursor.execute("SELECT id, name, nick_name, email FROM users WHERE email = %s", (email,))
+                user = cursor.fetchone()
 
             if not user:
                 self.logger.log(f"❌ No se encontró ningún usuario con el correo: {email}")

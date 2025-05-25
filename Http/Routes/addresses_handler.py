@@ -1,19 +1,13 @@
 from flask import jsonify, request
-from BBDD.database_connection import DatabaseConnection
 
 class AddressesHandler:
-    def __init__(self, app, logger):
+    def __init__(self, app, logger, db_connection):
         self.app = app
         self.logger = logger
-        self.db_connection = DatabaseConnection(
-            host="jpastorcasquero.mysql.pythonanywhere-services.com",
-            database="jpastorcasquero$prevision_demanda_db",
-            user="jpastorcasquero",
-            password="JPc11082006"
-        )
-        if not self.db_connection.connect():
+        self.db_connection = db_connection
+
+        if not self.db_connection or not self.db_connection.connection:
             self.logger.log("❌ No se pudo establecer la conexión en AddressesHandler")
-            self.db_connection = None
 
         self.setup_routes()
 
@@ -39,10 +33,9 @@ class AddressesHandler:
             return jsonify({'error': 'No hay conexión a la base de datos'}), 500
 
         try:
-            cursor = self.db_connection.connection.cursor()
-            cursor.execute("SELECT * FROM addresses")
-            addresses = cursor.fetchall()
-            cursor.close()
+            with self.db_connection.connection.cursor() as cursor:
+                cursor.execute("SELECT * FROM addresses")
+                addresses = cursor.fetchall()
 
             address_list = [{
                 'id': a['id'],
@@ -64,10 +57,9 @@ class AddressesHandler:
             return jsonify({'error': 'No hay conexión a la base de datos'}), 500
 
         try:
-            cursor = self.db_connection.connection.cursor()
-            cursor.execute("SELECT * FROM addresses WHERE user_id = %s", (user_id,))
-            addresses = cursor.fetchall()
-            cursor.close()
+            with self.db_connection.connection.cursor() as cursor:
+                cursor.execute("SELECT * FROM addresses WHERE user_id = %s", (user_id,))
+                addresses = cursor.fetchall()
 
             address_list = [{
                 'id': a['id'],
@@ -97,17 +89,16 @@ class AddressesHandler:
                 if field not in data:
                     return jsonify({'error': f'Falta el campo obligatorio: {field}'}), 400
 
-            cursor = self.db_connection.connection.cursor()
-            cursor.execute("""
-                INSERT INTO addresses (user_id, country, city, address, postal_code)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (
-                data['user_id'], data['country'], data['city'],
-                data['address'], data['postal_code']
-            ))
-            self.db_connection.connection.commit()
-            new_id = cursor.lastrowid
-            cursor.close()
+            with self.db_connection.connection.cursor() as cursor:
+                cursor.execute("""
+                    INSERT INTO addresses (user_id, country, city, address, postal_code)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (
+                    data['user_id'], data['country'], data['city'],
+                    data['address'], data['postal_code']
+                ))
+                self.db_connection.connection.commit()
+                new_id = cursor.lastrowid
 
             response = {
                 'id': new_id,
@@ -125,25 +116,22 @@ class AddressesHandler:
             self.logger.log(f"❌ Error en create_address: {repr(e)}")
             return jsonify({'error': repr(e)}), 500
 
-
-
     def update_address(self, user_id):
         if not self.db_connection or not self.db_connection.connection:
             return jsonify({'error': 'No hay conexión a la base de datos'}), 500
 
         try:
             data = request.get_json()
-            cursor = self.db_connection.connection.cursor()
-            cursor.execute("""
-                UPDATE addresses
-                SET country = %s, city = %s, address = %s, postal_code = %s
-                WHERE user_id = %s
-            """, (
-                data['country'], data['city'], data['address'],
-                data['postal_code'], user_id
-            ))
-            self.db_connection.connection.commit()
-            cursor.close()
+            with self.db_connection.connection.cursor() as cursor:
+                cursor.execute("""
+                    UPDATE addresses
+                    SET country = %s, city = %s, address = %s, postal_code = %s
+                    WHERE user_id = %s
+                """, (
+                    data['country'], data['city'], data['address'],
+                    data['postal_code'], user_id
+                ))
+                self.db_connection.connection.commit()
 
             self.logger.log(f"PUT /addresses/{user_id}\nActualizado: {data}")
             return jsonify({'message': 'Dirección actualizada exitosamente'}), 200
@@ -156,10 +144,9 @@ class AddressesHandler:
             return jsonify({'error': 'No hay conexión a la base de datos'}), 500
 
         try:
-            cursor = self.db_connection.connection.cursor()
-            cursor.execute("DELETE FROM addresses WHERE user_id = %s", (user_id,))
-            self.db_connection.connection.commit()
-            cursor.close()
+            with self.db_connection.connection.cursor() as cursor:
+                cursor.execute("DELETE FROM addresses WHERE user_id = %s", (user_id,))
+                self.db_connection.connection.commit()
 
             self.logger.log(f"DELETE /addresses/{user_id}\nEliminado.")
             return jsonify({'message': 'Dirección eliminada correctamente'}), 200

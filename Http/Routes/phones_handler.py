@@ -1,15 +1,10 @@
 from flask import jsonify, request
-from BBDD.database_connection_handler import DatabaseConnectionHandler
-from Logger.logger import Logger
 
 class PhonesHandler:
-    def __init__(self, app, logger):
+    def __init__(self, app, logger, db_connection):
         self.app = app
         self.logger = logger
-
-        # Obtener la conexión centralizada
-        handler = DatabaseConnectionHandler(logger)
-        self.db_connection = handler.functions.db_connection
+        self.db_connection = db_connection  # ✅ Se reutiliza la conexión principal
 
         self.setup_routes()
 
@@ -32,10 +27,9 @@ class PhonesHandler:
 
     def get_all_phones(self):
         try:
-            cursor = self.db_connection.connection.cursor()
-            cursor.execute("SELECT * FROM phones")
-            phones = cursor.fetchall()
-            cursor.close()
+            with self.db_connection.connection.cursor() as cursor:
+                cursor.execute("SELECT * FROM phones")
+                phones = cursor.fetchall()
 
             phone_list = [{'id': p[0], 'user_id': p[1], 'country_code': p[2], 'phone': p[3]} for p in phones]
             self.logger.log(f"[GET] /phones -> {phone_list}")
@@ -46,10 +40,9 @@ class PhonesHandler:
 
     def get_phones_by_user(self, user_id):
         try:
-            cursor = self.db_connection.connection.cursor()
-            cursor.execute("SELECT * FROM phones WHERE user_id = %s", (user_id,))
-            phones = cursor.fetchall()
-            cursor.close()
+            with self.db_connection.connection.cursor() as cursor:
+                cursor.execute("SELECT * FROM phones WHERE user_id = %s", (user_id,))
+                phones = cursor.fetchall()
 
             phone_list = [{'id': p[0], 'user_id': p[1], 'country_code': p[2], 'phone': p[3]} for p in phones]
             self.logger.log(f"[GET] /phones/{user_id} -> {phone_list}")
@@ -61,17 +54,16 @@ class PhonesHandler:
     def create_phone(self):
         try:
             data = request.get_json()
-            cursor = self.db_connection.connection.cursor()
-            cursor.execute("""
-                INSERT INTO phones (user_id, country_code, phone)
-                VALUES (%s, %s, %s)
-            """, (
-                data.get('user_id'),
-                data.get('country_code'),
-                data.get('phone')
-            ))
-            self.db_connection.connection.commit()
-            cursor.close()
+            with self.db_connection.connection.cursor() as cursor:
+                cursor.execute("""
+                    INSERT INTO phones (user_id, country_code, phone)
+                    VALUES (%s, %s, %s)
+                """, (
+                    data.get('user_id'),
+                    data.get('country_code'),
+                    data.get('phone')
+                ))
+                self.db_connection.connection.commit()
 
             self.logger.log(f"[POST] /phones -> {data}")
             return jsonify({'message': 'Teléfono creado exitosamente'}), 201
@@ -82,18 +74,17 @@ class PhonesHandler:
     def update_phone(self, user_id):
         try:
             data = request.get_json()
-            cursor = self.db_connection.connection.cursor()
-            cursor.execute("""
-                UPDATE phones
-                SET country_code = %s, phone = %s
-                WHERE user_id = %s
-            """, (
-                data.get('country_code'),
-                data.get('phone'),
-                user_id
-            ))
-            self.db_connection.connection.commit()
-            cursor.close()
+            with self.db_connection.connection.cursor() as cursor:
+                cursor.execute("""
+                    UPDATE phones
+                    SET country_code = %s, phone = %s
+                    WHERE user_id = %s
+                """, (
+                    data.get('country_code'),
+                    data.get('phone'),
+                    user_id
+                ))
+                self.db_connection.connection.commit()
 
             self.logger.log(f"[PUT] /phones/{user_id} -> {data}")
             return jsonify({'message': 'Teléfono actualizado exitosamente'}), 200
@@ -103,10 +94,9 @@ class PhonesHandler:
 
     def delete_phone(self, user_id):
         try:
-            cursor = self.db_connection.connection.cursor()
-            cursor.execute("DELETE FROM phones WHERE user_id = %s", (user_id,))
-            self.db_connection.connection.commit()
-            cursor.close()
+            with self.db_connection.connection.cursor() as cursor:
+                cursor.execute("DELETE FROM phones WHERE user_id = %s", (user_id,))
+                self.db_connection.connection.commit()
 
             self.logger.log(f"[DELETE] /phones/{user_id} -> eliminado")
             return jsonify({'message': 'Teléfono borrado exitosamente'}), 200

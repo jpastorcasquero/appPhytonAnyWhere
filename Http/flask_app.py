@@ -1,64 +1,66 @@
 from flask import Flask, render_template, request, jsonify, redirect
-
 from flask_cors import CORS
 from flask_socketio import SocketIO
 import os
+import atexit
 
 from Logger.logger import Logger
 from BBDD.database_connection import DatabaseConnection
 
 from Http.Routes.get_prediction_handler import get_prediction_bp
 from Http.Routes.get_classifier_handler import get_classifier_bp
-from Http.Routes.reset_password_handler import reset_password_bp, ResetPasswordHandler  # ✅ CORREGIDO AQUÍ
+from Http.Routes.reset_password_handler import reset_password_bp, ResetPasswordHandler
 from Http.Routes.users_handler import UsersHandler
 from Http.Routes.addresses_handler import AddressesHandler
 from Http.Routes.phones_handler import PhonesHandler
 from Http.Routes.connections_handler import ConnectionsHandler
-from Http.Routes.users_api import users_api
+from Http.Routes.users_api import create_users_routes
+from BBDD.database_functions import DatabaseFunctions
 from Http.Routes.avatar_routes import avatar_bp
 from Http.Routes.password_reset_service import PasswordResetService
-
 
 
 class FlaskApp:
     def __init__(self):
         self.app = Flask(__name__, static_folder="static")
-
         CORS(self.app, resources={r"/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]}})
         self.socketio = SocketIO(self.app, cors_allowed_origins="*")
 
         os.makedirs('/home/jpastorcasquero/JPC', exist_ok=True)
         log_path = '/home/jpastorcasquero/JPC/log.txt'
 
-        db_connection = DatabaseConnection(
+        # 🔌 Conexión central
+        self.db_connection = DatabaseConnection(
             host="jpastorcasquero.mysql.pythonanywhere-services.com",
             database="jpastorcasquero$prevision_demanda_db",
             user="jpastorcasquero",
             password="JPc11082006"
         )
-        success = db_connection.connect()
-        self.db_connection = db_connection
-
+        success = self.db_connection.connect()
         if not success:
             print("❌ Error al conectar con la base de datos en FlaskApp")
 
+        # 📝 Logger con conexión activa
         self.logger = Logger(log_path, db_connection=self.db_connection.connection)
 
-        # Handlers principales
+        # 🚏 Handlers principales con conexión compartida
         self.users_handler = UsersHandler(self.app, self.logger)
-        self.addresses_handler = AddressesHandler(self.app, self.logger)
-        self.phones_handler = PhonesHandler(self.app, self.logger)
-        self.connections_handler = ConnectionsHandler(self.app, self.logger)
-        self.reset_password_handler = ResetPasswordHandler(self.logger)  # ⚠️ YA REGISTRA SU BLUEPRINT
-        self.app.register_blueprint(reset_password_bp)
+        self.addresses_handler = AddressesHandler(self.app, self.logger, self.db_connection)
+        self.phones_handler = PhonesHandler(self.app, self.logger, self.db_connection)
+        self.connections_handler = ConnectionsHandler(self.app, self.logger, self.db_connection)
+        self.reset_password_handler = ResetPasswordHandler(self.logger, self.db_connection)
+        self.reset_service = PasswordResetService(self.logger, self.db_connection)
 
-        # Blueprints REST
-        self.app.register_blueprint(users_api)
+        # 🔁 Blueprints RESTful
+        self.functions = DatabaseFunctions(self.logger)
+        self.functions.db_connection = self.db_connection  # ✅ NO crear nueva conexión
+        create_users_routes(self.app, self.logger, self.functions)
         self.app.register_blueprint(get_classifier_bp)
         self.app.register_blueprint(get_prediction_bp)
+        self.app.register_blueprint(reset_password_bp)
         self.app.register_blueprint(avatar_bp)
 
-        # Ruta principal
+        # 🌐 Página de login
         @self.app.route("/", methods=["GET", "POST"])
         def login_page():
             error = None
@@ -71,18 +73,25 @@ class FlaskApp:
                     error = "Credenciales incorrectas"
             return render_template("index.html", error=error)
 
+        # 👤 Página de usuarios
         @self.app.route("/usuarios")
         def usuarios_page():
             return render_template("usuarios.html")
 
-        # Endpoint para enviar email de recuperación
-        reset_service = PasswordResetService(self.logger)
-
+        # 📧 Endpoint para recuperación de contraseña
         @self.app.route("/users/forgot_password", methods=["POST"])
         def forgot_password():
             data = request.get_json()
             email = data.get("email")
-            return reset_service.send_reset_email(email)
+            return self.reset_service.send_reset_email(email)
+
+        # 🧹 Cierre automático de conexión al salir
+        atexit.register(self.close_connections)
+
+    def close_connections(self):
+        if self.db_connection:
+            closed, msg = self.db_connection.close()
+            print(f"🔌 {msg}")
 
     def run(self):
         if os.getenv('PA_ENV') is None:
