@@ -63,15 +63,17 @@ class PasswordResetService:
             </head>
             <body>
                 <div class="container">
-                    <img src="https://jpastorcasquero.pythonanywhere.com/static/Logo.ico" class="logo" alt="Logo" />
                     <h2>Restablecimiento de Contraseña</h2>
                     <p>Hola <strong>{name}</strong>,</p>
                     <p>Hemos recibido una solicitud para restablecer tu contraseña. Haz clic en el botón para continuar:</p>
                     <a href="{reset_link}" class="button">Restablecer contraseña</a>
+                    <p></p>
+                    <img src="https://jpastorcasquero.pythonanywhere.com/static/Logo.png" class="logo" alt="Logo" />
                 </div>
             </body>
             </html>
             """
+
 
             msg = MIMEText(html_content, 'html')
             msg['Subject'] = 'Restablecer tu contraseña'
