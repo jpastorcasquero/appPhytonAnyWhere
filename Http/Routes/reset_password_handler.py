@@ -23,56 +23,75 @@ class ResetPasswordHandler:
 
     def get_reset_password_form(self):
         return '''
-        <!DOCTYPE html>
-        <html lang="es">
-        <head>
-            <meta charset="UTF-8">
-            <title>Restablecer Contraseña</title>
-            <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    background-color: #f4f4f4;
-                    text-align: center;
-                    padding: 40px;
-                }
-                .container {
-                    background-color: white;
-                    padding: 30px;
-                    border-radius: 10px;
-                    max-width: 500px;
-                    margin: auto;
-                    box-shadow: 0 0 10px rgba(0,0,0,0.1);
-                }
-                img.logo {
-                    width: 120px;
-                    margin-bottom: 20px;
-                }
-                input[type=password], input[type=submit] {
-                    width: 80%;
-                    padding: 10px;
-                    margin: 10px;
-                }
-                .error {
-                    color: red;
-                    margin-top: 10px;
-                }
-            </style>
-        </head>
-        <body>
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <title>Restablecer Contraseña</title>
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        background-color: #f4f4f4;
+                        text-align: center;
+                        padding: 40px;
+                    }
+                    .container {
+                        background-color: white;
+                        padding: 30px;
+                        border-radius: 10px;
+                        max-width: 500px;
+                        margin: auto;
+                        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+                    }
+                    img.logo {
+                        width: 120px;
+                        margin-bottom: 20px;
+                    }
+                    input[type=password], input[type=submit] {
+                        width: 80%;
+                        padding: 10px;
+                        margin: 10px;
+                    }
+                    .error {
+                        color: red;
+                        margin-top: 10px;
+                    }
+                </style>
+            </head>
+            <body>
             <div class="container">
                 <img src="/static/Logo.ico" class="logo" alt="Logo">
                 <h2>Restablece tu contraseña</h2>
-                <form method="POST">
-                    <input type="password" name="password1" placeholder="Nueva contraseña" required><br>
-                    <input type="password" name="password2" placeholder="Confirmar contraseña" required><br>
+                <form method="POST" id="resetForm">
+                    <input type="password" name="password1" id="password1" placeholder="Nueva contraseña" required><br>
+                    <input type="password" name="password2" id="password2" placeholder="Confirmar contraseña" required><br>
                     <input type="submit" value="Guardar">
-                    {% if error %}
-                        <div class="error">{{ error }}</div>
-                    {% endif %}
+                    <div class="error" id="errorMessage">{{ error }}</div>
                 </form>
             </div>
-        </body>
-        </html>
+
+            <script>
+            document.getElementById("resetForm").addEventListener("submit", function(e) {
+                const password1 = document.getElementById("password1").value.trim();
+                const password2 = document.getElementById("password2").value.trim();
+                const errorDiv = document.getElementById("errorMessage");
+
+                errorDiv.textContent = "";
+
+                if (password1.length < 8) {
+                    errorDiv.textContent = "❌ La contraseña debe tener al menos 8 caracteres.";
+                    e.preventDefault();
+                    return;
+                }
+
+                if (password1 !== password2) {
+                    errorDiv.textContent = "❌ Las contraseñas no coinciden.";
+                    e.preventDefault();
+                }
+            });
+            </script>
+            </body>
+            </html>
         '''
 
     def handle_reset_password(self, user_id):
