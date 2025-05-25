@@ -28,13 +28,14 @@ class FlaskApp:
         CORS(self.app, supports_credentials=True, resources={
             r"/*": {
                 "origins": [
-                    "http://localhost:4200",                    # para desarrollo local
-                    "https://tu-dominio-produccion.com"        # sustituye por tu dominio real
+                    "http://localhost:4200",
+                    "https://jpastorcasquero.pythonanywhere.com"
                 ],
                 "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
                 "allow_headers": ["Content-Type", "Authorization"]
             }
         })
+
 
         self.socketio = SocketIO(self.app, cors_allowed_origins="*")
 
@@ -108,10 +109,4 @@ class FlaskApp:
     def run(self):
         if os.getenv('PA_ENV') is None:
             self.app.run(host='127.0.0.1', port=5001, debug=True)
-
-    def add_cors_headers(self, response):
-        response.headers['Access-Control-Allow-Origin'] = '*'
-        response.headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,DELETE,OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
-        return response
 

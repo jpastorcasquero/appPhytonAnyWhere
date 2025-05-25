@@ -12,32 +12,21 @@ class AddressesHandler:
         self.setup_routes()
 
     def setup_routes(self):
-        @self.app.route('/addresses', methods=['GET', 'POST', 'OPTIONS'])
+        @self.app.route('/addresses', methods=['GET', 'POST'])
         def handle_addresses():
-            if request.method == 'OPTIONS':
-                return self._cors_preflight_response()
-            elif request.method == 'GET':
+            if request.method == 'GET':
                 return self.get_all_addresses()
             elif request.method == 'POST':
                 return self.create_address()
 
-        @self.app.route('/addresses/<int:user_id>', methods=['GET', 'PUT', 'DELETE', 'OPTIONS'])
+        @self.app.route('/addresses/<int:user_id>', methods=['GET', 'PUT', 'DELETE'])
         def handle_address_by_user(user_id):
-            if request.method == 'OPTIONS':
-                return self._cors_preflight_response()
-            elif request.method == 'GET':
+            if request.method == 'GET':
                 return self.get_addresses_by_user(user_id)
             elif request.method == 'PUT':
                 return self.update_address(user_id)
             elif request.method == 'DELETE':
                 return self.delete_address(user_id)
-
-    def _cors_preflight_response(self):
-        response = jsonify({'message': 'Preflight check OK'})
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
-        return response, 200
 
     def get_all_addresses(self):
         if not self.db_connection or not self.db_connection.connection:
@@ -125,20 +114,38 @@ class AddressesHandler:
         try:
             data = request.get_json()
             with self.db_connection.connection.cursor() as cursor:
-                cursor.execute("""
-                    UPDATE addresses
-                    SET country = %s, city = %s, address = %s, postal_code = %s
-                    WHERE user_id = %s
-                """, (
-                    data['country'], data['city'], data['address'],
-                    data['postal_code'], user_id
-                ))
+                # Comprobar si ya existe dirección
+                cursor.execute("SELECT id FROM addresses WHERE user_id = %s", (user_id,))
+                existing = cursor.fetchone()
+
+                if existing:
+                    # Ya existe -> hacemos UPDATE
+                    cursor.execute("""
+                        UPDATE addresses
+                        SET country = %s, city = %s, address = %s, postal_code = %s
+                        WHERE user_id = %s
+                    """, (
+                        data['country'], data['city'], data['address'],
+                        data['postal_code'], user_id
+                    ))
+                else:
+                    # No existe -> hacemos INSERT
+                    cursor.execute("""
+                        INSERT INTO addresses (user_id, country, city, address, postal_code)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (
+                        user_id, data['country'], data['city'], data['address'], data['postal_code']
+                    ))
+
                 self.db_connection.connection.commit()
-            self.logger.log(f"PUT /addresses/{user_id}\nActualizado: {data}")
-            return jsonify({'message': 'Dirección actualizada exitosamente'}), 200
+
+            self.logger.log(f"PUT /addresses/{user_id}\nActualizado/Insertado: {data}")
+            return jsonify({'message': 'Dirección guardada correctamente'}), 200
+
         except Exception as e:
             self.logger.log(f"❌ Error en update_address: {repr(e)}")
             return jsonify({'error': repr(e)}), 500
+
 
     def delete_address(self, user_id):
         if not self.db_connection or not self.db_connection.connection:

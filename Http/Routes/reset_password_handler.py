@@ -1,13 +1,16 @@
 from flask import Blueprint, render_template_string, request, jsonify
 from Logger.logger import Logger
 from BBDD.validator_UI import Validator
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
-reset_password_bp = Blueprint('reset_password_bp', __name__)
+reset_password_bp = Blueprint('reset_password_bp', __name__, url_prefix="/users")
 
 class ResetPasswordHandler:
     def __init__(self, logger: Logger, db_connection):
         self.logger = logger
-        self.db_connection = db_connection  # ✅ Se recibe del exterior
+        self.db_connection = db_connection
         self.setup_routes()
 
     def setup_routes(self):
@@ -17,6 +20,93 @@ class ResetPasswordHandler:
                 return render_template_string(self.get_reset_password_form(), user_id=user_id)
             elif request.method == 'POST':
                 return self.handle_reset_password(user_id)
+
+        @reset_password_bp.route('/reset_password', methods=['POST'])
+        def send_reset_password_email():
+            data = request.get_json()
+            email = data.get("email")
+            if not email:
+                return jsonify({"error": "El campo email es obligatorio"}), 400
+        
+            try:
+                if not self.db_connection.connection:
+                    self.db_connection.connect()
+        
+                with self.db_connection.connection.cursor() as cursor:
+                    cursor.execute("SELECT id, name FROM users WHERE email = %s", (email,))
+                    user = cursor.fetchone()
+        
+                if not user:
+                    return jsonify({"error": "No existe ningún usuario con ese correo electrónico"}), 404
+        
+                user_id = user["id"]
+                name = user["name"]
+                reset_link = f"https://jpastorcasquero.pythonanywhere.com/users/reset_password/{user_id}"
+        
+                html_content = f"""
+                <html>
+                <head>
+                    <style>
+                        body {{
+                            font-family: Arial, sans-serif;
+                            text-align: center;
+                            background-color: #f7f7f7;
+                            padding: 20px;
+                        }}
+                        .container {{
+                            background-color: #fff;
+                            padding: 30px;
+                            margin: auto;
+                            max-width: 600px;
+                            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+                            border-radius: 8px;
+                        }}
+                        .logo {{
+                            width: 100px;
+                            margin-bottom: 20px;
+                        }}
+                        .button {{
+                            display: inline-block;
+                            padding: 10px 20px;
+                            background-color: #007bff;
+                            color: #fff;
+                            text-decoration: none;
+                            border-radius: 4px;
+                            margin-top: 20px;
+                        }}
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h2>Restablecimiento de Contraseña</h2>
+                        <p>Hola <strong>{name}</strong>,</p>
+                        <p>Hemos recibido una solicitud para restablecer tu contraseña. Haz clic en el botón para continuar:</p>
+                        <a href="{reset_link}" class="button">Restablecer contraseña</a>
+                        <p>Si no solicitaste este cambio, puedes ignorar este mensaje.</p>
+                        <img src="https://jpastorcasquero.pythonanywhere.com/static/Logo.png" class="logo" alt="Logo" />
+                    </div>
+                </body>
+                </html>
+                """
+        
+                msg = MIMEMultipart("alternative")
+                msg["Subject"] = "Restablecer tu contraseña"
+                msg["From"] = "pass.recovery.jpcinformatica@gmail.com"
+                msg["To"] = email
+                msg.attach(MIMEText(html_content, "html"))
+        
+                with smtplib.SMTP("smtp.gmail.com", 587) as server:
+                    server.starttls()
+                    server.login("pass.recovery.jpcinformatica@gmail.com", "yxko jelw mgoo vumt")  # ✅ contraseña de aplicación
+                    server.sendmail(msg["From"], msg["To"], msg.as_string())
+        
+                self.logger.log(f"✅ Enlace de restablecimiento enviado a {email}")
+                return jsonify({"message": "Correo de recuperación enviado correctamente"}), 200
+        
+            except Exception as e:
+                self.logger.log(f"❌ Error al enviar correo de recuperación: {repr(e)}")
+                return jsonify({"error": "Error al enviar el correo"}), 500
+
 
     def get_reset_password_form(self):
         return '''

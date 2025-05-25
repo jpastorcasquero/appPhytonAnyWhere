@@ -37,9 +37,12 @@ class UsersHandler:
         def logout():
             return self.logout_user()
 
-        @self.app.route('/users/check_email/<string:email>', methods=['GET'])
+        @self.app.route('/users/check_email/<string:email>', methods=['GET', 'OPTIONS'])
         def check_email(email):
+            if request.method == 'OPTIONS':
+                return '', 200
             return self.check_email_exists(email)
+
 
     def login_user(self):
         if not self.db_connection or not self.db_connection.connection:
@@ -177,13 +180,21 @@ class UsersHandler:
                 VALUES (%s, %s, %s, %s, %s, %s)
             """, (data['name'], data['email'], data['nick_name'], data['role'], data['image'], data['password']))
             self.db_connection.connection.commit()
+
+            # Obtener el usuario insertado
+            cursor.execute("SELECT * FROM users WHERE email = %s", (data['email'],))
+            user = cursor.fetchone()
             cursor.close()
 
-            self.logger.log(f"POST /users\nInsertado: {data}")
-            return jsonify({'message': 'Usuario creado exitosamente'}), 201
+            if user and "password" in user:
+                user.pop("password")
+
+            self.logger.log(f"✅ Usuario insertado y devuelto: {user}")
+            return jsonify(user), 201
         except Exception as e:
-            self.logger.log(f"Error en create_user: {repr(e)}")
+            self.logger.log(f"❌ Error en create_user: {repr(e)}")
             return jsonify({'error': str(e)}), 500
+
 
     def update_user(self, user_id):
         if not self.db_connection or not self.db_connection.connection:
@@ -227,7 +238,17 @@ class UsersHandler:
             cursor.close()
 
             self.logger.log(f"PUT /users/{user_id}\nActualizado: {data}")
-            return jsonify({'message': 'Usuario actualizado exitosamente'}), 200
+
+            cursor = self.db_connection.connection.cursor()
+            cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+            updated_user = cursor.fetchone()
+            cursor.close()
+
+            if updated_user and "password" in updated_user:
+                updated_user.pop("password")
+
+            return jsonify(updated_user), 200
+
 
         except Exception as e:
             self.logger.log(f"❌ Error en update_user: {repr(e)}")
@@ -260,7 +281,8 @@ class UsersHandler:
 
             existe = user is not None
             self.logger.log(f"GET /users/check_email/{email}\nExiste: {existe}")
-            return jsonify({'exists': existe}), (200 if existe else 404)
+            return jsonify({'exists': existe}), (200 if existe else 200)
+
         except Exception as e:
             self.logger.log(f"❌ Error en check_email_exists: {repr(e)}")
             return jsonify({'error': str(e)}), 500

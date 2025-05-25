@@ -26,7 +26,7 @@ class PasswordResetService:
             name = user["name"]
             user_email = user["email"]
 
-            reset_link = f"https://jpastorcasquero.pythonanywhere.com/reset_password/{user_id}"
+            reset_link = f"https://jpastorcasquero.pythonanywhere.com/users/reset_password/{user_id}"
 
             html_content = f"""
             <html>
