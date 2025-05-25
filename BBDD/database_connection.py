@@ -16,8 +16,8 @@ class DatabaseConnection:
                 password=self.password,
                 database=self.database,
                 cursorclass=pymysql.cursors.DictCursor,
-                autocommit=True,              # <- permite commits automáticos
-                connect_timeout=10,           # <- timeout para evitar bloqueos
+                autocommit=True,
+                connect_timeout=10,
                 charset='utf8mb4'
             )
             return True
@@ -27,7 +27,6 @@ class DatabaseConnection:
 
     def is_connected(self):
         try:
-            # Este método verifica si la conexión está activa
             self.connection.ping(reconnect=True)
             return True
         except Exception as e:
@@ -55,3 +54,8 @@ class DatabaseConnection:
         except Exception as e:
             print(f"❌ Error al ejecutar consulta: {e}")
             return []
+
+    def ensure_connection(self):
+        if not self.connection or not self.is_connected():
+            return self.connect()
+        return True
