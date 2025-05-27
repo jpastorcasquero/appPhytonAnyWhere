@@ -43,9 +43,8 @@ class UsersHandler:
                 return '', 200
             return self.check_email_exists(email)
 
-
     def login_user(self):
-        if not self.db_connection or not self.db_connection.connection:
+        if not self.db_connection.ensure_connection():
             return jsonify({'error': 'Conexión a base de datos no disponible'}), 500
         try:
             data = request.get_json(force=True)
@@ -100,7 +99,7 @@ class UsersHandler:
             return jsonify({'error': str(e)}), 500
 
     def logout_user(self):
-        if not self.db_connection or not self.db_connection.connection:
+        if not self.db_connection.ensure_connection():
             return jsonify({'error': 'Conexión a base de datos no disponible'}), 500
         try:
             data = request.get_json(force=True)
@@ -134,6 +133,8 @@ class UsersHandler:
             return jsonify({'error': str(e)}), 500
 
     def get_all_users(self):
+        if not self.db_connection.ensure_connection():
+            return jsonify({'error': 'Conexión a base de datos no disponible'}), 500
         try:
             cursor = self.db_connection.connection.cursor()
             cursor.execute("SELECT * FROM users")
@@ -146,7 +147,7 @@ class UsersHandler:
             return jsonify({'error': str(e)}), 500
 
     def get_user_by_id(self, user_id):
-        if not self.db_connection or not self.db_connection.connection:
+        if not self.db_connection.ensure_connection():
             return jsonify({'error': 'Conexión a base de datos no disponible'}), 500
         try:
             cursor = self.db_connection.connection.cursor()
@@ -164,7 +165,7 @@ class UsersHandler:
             return jsonify({'error': str(e)}), 500
 
     def create_user(self):
-        if not self.db_connection or not self.db_connection.connection:
+        if not self.db_connection.ensure_connection():
             return jsonify({'error': 'Conexión a base de datos no disponible'}), 500
         try:
             data = request.get_json()
@@ -181,7 +182,6 @@ class UsersHandler:
             """, (data['name'], data['email'], data['nick_name'], data['role'], data['image'], data['password']))
             self.db_connection.connection.commit()
 
-            # Obtener el usuario insertado
             cursor.execute("SELECT * FROM users WHERE email = %s", (data['email'],))
             user = cursor.fetchone()
             cursor.close()
@@ -195,15 +195,13 @@ class UsersHandler:
             self.logger.log(f"❌ Error en create_user: {repr(e)}")
             return jsonify({'error': str(e)}), 500
 
-
     def update_user(self, user_id):
-        if not self.db_connection or not self.db_connection.connection:
+        if not self.db_connection.ensure_connection():
             return jsonify({'error': 'Conexión a base de datos no disponible'}), 500
         try:
             data = request.get_json()
             cursor = self.db_connection.connection.cursor()
 
-            # Recuperar contraseña si no viene
             password = data.get('password')
             if not password:
                 cursor.execute("SELECT password FROM users WHERE id = %s", (user_id,))
@@ -219,7 +217,6 @@ class UsersHandler:
             role = data.get('role')
             image = data.get('image')
 
-            # Validar duplicado de nick_name
             cursor.execute("""
                 SELECT id FROM users WHERE nick_name = %s AND id != %s
             """, (nick_name, user_id))
@@ -228,7 +225,6 @@ class UsersHandler:
                 cursor.close()
                 return jsonify({'error': 'El nombre de usuario ya está en uso por otro usuario.'}), 409
 
-            # Ejecutar actualización
             cursor.execute("""
                 UPDATE users
                 SET name = %s, email = %s, nick_name = %s, role = %s, image = %s, password = %s
@@ -249,14 +245,12 @@ class UsersHandler:
 
             return jsonify(updated_user), 200
 
-
         except Exception as e:
             self.logger.log(f"❌ Error en update_user: {repr(e)}")
             return jsonify({'error': str(e)}), 500
 
-
     def delete_user(self, user_id):
-        if not self.db_connection or not self.db_connection.connection:
+        if not self.db_connection.ensure_connection():
             return jsonify({'error': 'Conexión a base de datos no disponible'}), 500
         try:
             cursor = self.db_connection.connection.cursor()
@@ -271,7 +265,7 @@ class UsersHandler:
             return jsonify({'error': str(e)}), 500
 
     def check_email_exists(self, email):
-        if not self.db_connection or not self.db_connection.connection:
+        if not self.db_connection.ensure_connection():
             return jsonify({'error': 'Conexión a base de datos no disponible'}), 500
         try:
             cursor = self.db_connection.connection.cursor()
@@ -281,7 +275,7 @@ class UsersHandler:
 
             existe = user is not None
             self.logger.log(f"GET /users/check_email/{email}\nExiste: {existe}")
-            return jsonify({'exists': existe}), (200 if existe else 200)
+            return jsonify({'exists': existe}), 200
 
         except Exception as e:
             self.logger.log(f"❌ Error en check_email_exists: {repr(e)}")

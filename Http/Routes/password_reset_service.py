@@ -6,10 +6,13 @@ from Logger.logger import Logger
 class PasswordResetService:
     def __init__(self, logger: Logger, db_connection):
         self.logger = logger
-        self.db_connection = db_connection  # ✅ conexión reutilizada
+        self.db_connection = db_connection
+
+    def ensure_connection(self):
+        return self.db_connection and self.db_connection.ensure_connection()
 
     def send_reset_email(self, email):
-        if not self.db_connection or not self.db_connection.connection:
+        if not self.ensure_connection():
             self.logger.log("❌ No hay conexión activa en PasswordResetService")
             return jsonify({"error": "No hay conexión a la base de datos."}), 500
 
@@ -73,7 +76,6 @@ class PasswordResetService:
             </body>
             </html>
             """
-
 
             msg = MIMEText(html_content, 'html')
             msg['Subject'] = 'Restablecer tu contraseña'

@@ -24,7 +24,13 @@ class ConnectionsHandler:
             elif request.method == 'DELETE':
                 return self.delete_connection(user_id)
 
+    def ensure_connection(self):
+        return self.db_connection and self.db_connection.ensure_connection()
+
     def get_all_connections(self):
+        if not self.ensure_connection():
+            self.logger.log("❌ Conexión no disponible en get_all_connections")
+            return jsonify({'error': 'Conexión no disponible'}), 500
         try:
             with self.db_connection.connection.cursor() as cursor:
                 cursor.execute("SELECT * FROM connections")
@@ -45,6 +51,9 @@ class ConnectionsHandler:
             return jsonify({'error': str(e)}), 500
 
     def get_connections_by_user(self, user_id):
+        if not self.ensure_connection():
+            self.logger.log("❌ Conexión no disponible en get_connections_by_user")
+            return jsonify({'error': 'Conexión no disponible'}), 500
         try:
             with self.db_connection.connection.cursor() as cursor:
                 cursor.execute("SELECT * FROM connections WHERE user_id = %s ORDER BY connection_date DESC", (user_id,))
@@ -65,6 +74,9 @@ class ConnectionsHandler:
             return jsonify({'error': str(e)}), 500
 
     def create_connection(self):
+        if not self.ensure_connection():
+            self.logger.log("❌ Conexión no disponible en create_connection")
+            return jsonify({'error': 'Conexión no disponible'}), 500
         try:
             data = request.get_json()
             with self.db_connection.connection.cursor() as cursor:
@@ -85,6 +97,9 @@ class ConnectionsHandler:
             return jsonify({'error': str(e)}), 500
 
     def update_connection(self, user_id):
+        if not self.ensure_connection():
+            self.logger.log("❌ Conexión no disponible en update_connection")
+            return jsonify({'error': 'Conexión no disponible'}), 500
         try:
             data = request.get_json()
             with self.db_connection.connection.cursor() as cursor:
@@ -106,6 +121,9 @@ class ConnectionsHandler:
             return jsonify({'error': str(e)}), 500
 
     def delete_connection(self, user_id):
+        if not self.ensure_connection():
+            self.logger.log("❌ Conexión no disponible en delete_connection")
+            return jsonify({'error': 'Conexión no disponible'}), 500
         try:
             with self.db_connection.connection.cursor() as cursor:
                 cursor.execute("DELETE FROM connections WHERE user_id = %s", (user_id,))

@@ -29,7 +29,8 @@ class FlaskApp:
             r"/*": {
                 "origins": [
                     "http://localhost:4200",
-                    "https://jpastorcasquero.pythonanywhere.com"
+                    "https://jpastorcasquero.pythonanywhere.com",
+                    "https://jpastorcasquerofrontend.netlify.app"
                 ],
                 "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
                 "allow_headers": ["Content-Type", "Authorization"]

@@ -28,8 +28,11 @@ class AddressesHandler:
             elif request.method == 'DELETE':
                 return self.delete_address(user_id)
 
+    def ensure_connection(self):
+        return self.db_connection and self.db_connection.ensure_connection()
+
     def get_all_addresses(self):
-        if not self.db_connection or not self.db_connection.connection:
+        if not self.ensure_connection():
             return jsonify({'error': 'No hay conexión a la base de datos'}), 500
         try:
             with self.db_connection.connection.cursor() as cursor:
@@ -43,14 +46,14 @@ class AddressesHandler:
                 'address': a['address'],
                 'postal_code': a['postal_code']
             } for a in addresses]
-            self.logger.log(f"GET /addresses\nRespuesta: {address_list}")
+            self.logger.log(f"[GET] /addresses -> {address_list}")
             return jsonify(address_list), 200
         except Exception as e:
             self.logger.log(f"❌ Error en get_all_addresses: {repr(e)}")
             return jsonify({'error': repr(e)}), 500
 
     def get_addresses_by_user(self, user_id):
-        if not self.db_connection or not self.db_connection.connection:
+        if not self.ensure_connection():
             return jsonify({'error': 'No hay conexión a la base de datos'}), 500
         try:
             with self.db_connection.connection.cursor() as cursor:
@@ -64,14 +67,14 @@ class AddressesHandler:
                 'address': a['address'],
                 'postal_code': a['postal_code']
             } for a in addresses]
-            self.logger.log(f"GET /addresses/{user_id}\nRespuesta: {address_list}")
+            self.logger.log(f"[GET] /addresses/{user_id} -> {address_list}")
             return jsonify(address_list), 200
         except Exception as e:
             self.logger.log(f"❌ Error en get_addresses_by_user: {repr(e)}")
             return jsonify({'error': repr(e)}), 500
 
     def create_address(self):
-        if not self.db_connection or not self.db_connection.connection:
+        if not self.ensure_connection():
             return jsonify({'error': 'No hay conexión a la base de datos'}), 500
         try:
             data = request.get_json()
@@ -109,17 +112,15 @@ class AddressesHandler:
             return jsonify({'error': repr(e)}), 500
 
     def update_address(self, user_id):
-        if not self.db_connection or not self.db_connection.connection:
+        if not self.ensure_connection():
             return jsonify({'error': 'No hay conexión a la base de datos'}), 500
         try:
             data = request.get_json()
             with self.db_connection.connection.cursor() as cursor:
-                # Comprobar si ya existe dirección
                 cursor.execute("SELECT id FROM addresses WHERE user_id = %s", (user_id,))
                 existing = cursor.fetchone()
 
                 if existing:
-                    # Ya existe -> hacemos UPDATE
                     cursor.execute("""
                         UPDATE addresses
                         SET country = %s, city = %s, address = %s, postal_code = %s
@@ -129,7 +130,6 @@ class AddressesHandler:
                         data['postal_code'], user_id
                     ))
                 else:
-                    # No existe -> hacemos INSERT
                     cursor.execute("""
                         INSERT INTO addresses (user_id, country, city, address, postal_code)
                         VALUES (%s, %s, %s, %s, %s)
@@ -139,22 +139,20 @@ class AddressesHandler:
 
                 self.db_connection.connection.commit()
 
-            self.logger.log(f"PUT /addresses/{user_id}\nActualizado/Insertado: {data}")
+            self.logger.log(f"[PUT] /addresses/{user_id} -> {data}")
             return jsonify({'message': 'Dirección guardada correctamente'}), 200
-
         except Exception as e:
             self.logger.log(f"❌ Error en update_address: {repr(e)}")
             return jsonify({'error': repr(e)}), 500
 
-
     def delete_address(self, user_id):
-        if not self.db_connection or not self.db_connection.connection:
+        if not self.ensure_connection():
             return jsonify({'error': 'No hay conexión a la base de datos'}), 500
         try:
             with self.db_connection.connection.cursor() as cursor:
                 cursor.execute("DELETE FROM addresses WHERE user_id = %s", (user_id,))
                 self.db_connection.connection.commit()
-            self.logger.log(f"DELETE /addresses/{user_id}\nEliminado.")
+            self.logger.log(f"[DELETE] /addresses/{user_id} -> eliminado")
             return jsonify({'message': 'Dirección eliminada correctamente'}), 200
         except Exception as e:
             self.logger.log(f"❌ Error en delete_address: {repr(e)}")
